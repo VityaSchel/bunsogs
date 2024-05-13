@@ -1,3 +1,4 @@
+import { deriveSymmetricKey, getServerKey } from '@/keypairs'
 import crypto from 'node:crypto'
 
 export enum EncryptionType {
@@ -18,8 +19,7 @@ export function decryptChannelEncryption(encryptionType: EncryptionType, ciphert
 }
 
 function decryptGCM(ciphertext: Buffer, remote_pk: Buffer) {
-  const privateKey = getPrivateKey()
-  const derivedSymmetricKey = deriveSymmetricKey(privateKey, remote_pk)
+  const derivedSymmetricKey = deriveSymmetricKey(getServerKey().privateKey, remote_pk)
   return decryptOpenSSL('aes-256-gcm', 16, ciphertext, derivedSymmetricKey)
 }
 
@@ -41,8 +41,43 @@ function decryptOpenSSL(cipherName: string, tagLength: number, ciphertext: Buffe
   decipher.setAuthTag(tag)
 
   // Decrypt the ciphertext
-  let decrypted = decipher.update(ciphertext, undefined, 'utf8')
-  decrypted += decipher.final('utf8')
+  const decrypted = decipher.update(ciphertext)
+  return Buffer.concat([decrypted, decipher.final()])
+}
 
-  return decrypted
+export function encryptChannelEncryption(encryptionType: EncryptionType, plain: Buffer, remote_pk: Buffer): Buffer {
+  switch (encryptionType) {
+    case EncryptionType.xchacha20:
+      throw new Error('Not implemented')
+    case EncryptionType.gcm:
+      return encryptGCM(plain, remote_pk)
+    case EncryptionType.cbc:
+      throw new Error('Not implemented')
+  }
+}
+
+function encryptGCM(plain: Buffer, key: Buffer): Buffer {
+  const derivedSymmetricKey = deriveSymmetricKey(getServerKey().privateKey, key)
+  return encryptOpenSSL('aes-256-gcm', 16, plain, derivedSymmetricKey)
+}
+
+function encryptOpenSSL(algorithm: string, taglen: number, plain: Buffer, key: Buffer) {
+  const ivLength = 12
+
+  // Generate a random IV
+  const iv = crypto.randomBytes(ivLength)
+  const cipher = crypto.createCipheriv(algorithm, key, iv) as crypto.CipherGCM
+
+  // Encrypt the plaintext
+  const encrypted = Buffer.concat([
+    cipher.update(plain),
+    cipher.final()
+  ])
+
+  let tag = Buffer.alloc(0)
+  if (taglen > 0) {
+    tag = cipher.getAuthTag()
+  }
+
+  return Buffer.concat([iv, encrypted, tag])
 }

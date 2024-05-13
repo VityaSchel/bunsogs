@@ -2,7 +2,7 @@
 
 Session Open Group Server implementation written in JavaScript using [bun.sh](https://bun.sh)
 
-Aims to be very fast and flexible.
+Aims to be very fast and flexible. Drop-in replacement for pysogs — works with the same database schema.
 
 ## Core features and comparison table
 
@@ -38,6 +38,13 @@ This implementation is not intended to be end server, but rather a local webserv
   ```
 
 It is your job to configure web server to proxy requests to the specified URL. To leave SOGS running, you can use any persisting daemon you like. For example, to use [pm2](https://www.npmjs.com/package/pm2), install it like this: `bun install -g pm2` and to start daemon, use `pm2 start "bun start" --name="My Session Community"` (provide any name you like), also run `pm2 startup` to add pm2 to system autoruns.
+
+## Migration from official pysogs
+
+1. Install bunsogs using steps 1-4 from How to install section (including configuring sogs.conf)
+2. Move sogs.db from pysogs to root directory of bunsogs and rename it to db.sqlite3
+3. Move uploads directory from pysogs to root directory of bunsogs
+4. Run bunsogs
 
 ## Where is data stored?
 

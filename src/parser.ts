@@ -27,5 +27,11 @@ export function parseBody(body: Buffer) {
   const remote_pk = parsePubkey(metadata.ephemeral_key)
 
   const payload = decryptChannelEncryption(encryptionType, ciphertext, remote_pk)
-  console.log(payload)
+  
+  return {
+    payload, 
+    metadata,
+    encType: encryptionType,
+    remotePk: remote_pk
+  }
 }

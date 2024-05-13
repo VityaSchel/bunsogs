@@ -39,13 +39,24 @@ export function deriveSymmetricKey(privateKey: Buffer, publicKey: Buffer): Buffe
   return key
 }
 
-let privateKey: Buffer
-export function getPrivateKey(): Buffer {
-  return privateKey
+let publicServerKey: Buffer
+let privateServerKey: Buffer
+export function getServerKey(): { privateKey: Buffer, publicKey: Buffer } {
+  return {
+    privateKey: privateServerKey,
+    publicKey: publicServerKey
+  }
 }
 
-export async function loadPrivateKey() {
-  if(privateKey) return
+export async function loadServerKey() {
+  if (!privateServerKey || !publicServerKey) {
+    const keypair = nacl.box.keyPair()
+    publicServerKey = Buffer.from(keypair.publicKey)
+    privateServerKey = Buffer.from(keypair.secretKey)
+  }
 
-
+  return {
+    privateKey: privateServerKey,
+    publicKey: publicServerKey
+  }
 }
