@@ -3,20 +3,21 @@
   "module": "src/index.ts",
   "type": "module",
   "scripts": {
-    "start": "bun run src/index.ts"
+    "start": "bun src/index.ts",
+    "build-sql-defs": "sql-ts -c sql-ts-conf.json"
   },
   "devDependencies": {
+    "@rmp135/sql-ts": "^2.1.0",
     "@types/bencode": "^2.0.4",
     "@types/bun": "^1.1.1",
-    "eslint": "^8.8.0",
     "@typescript-eslint/eslint-plugin": "^5.38.0",
-    "@typescript-eslint/parser": "^5.38.0"
+    "@typescript-eslint/parser": "^5.38.0",
+    "eslint": "^8.8.0"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
   },
   "dependencies": {
-    "@rmp135/sql-ts": "^2.1.0",
     "@types/libsodium-wrappers": "^0.7.14",
     "bencode": "^4.0.0",
     "bun-sqlite-migrations": "^1.0.2",

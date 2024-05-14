@@ -6,6 +6,7 @@ import bencode from 'bencode'
 import SJSON from 'secure-json-parse'
 import { z } from 'zod'
 import chalk from 'chalk'
+import { loadRooms } from '@/rooms'
 
 const keys = await loadServerKey()
 const rooms = await loadRooms()
@@ -69,5 +70,8 @@ Bun.serve({
   }
 })
 
-console.log(`  SOGS started at ${chalk.bold(`${process.env.HOSTNAME || 'localhost'}:${process.env.PORT}`)}`)
-console.log(`\n    Public links to rooms:${}`)
+console.log()
+console.log(`  SOGS started at ${chalk.bold(`${process.env.HOSTNAME || 'localhost'}:${process.env.PORT || 3000}`)}`)
+console.log(`\n    Public links to rooms:${[]}`)
+console.log()
+console.log()

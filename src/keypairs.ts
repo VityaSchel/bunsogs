@@ -1,6 +1,7 @@
 import sodium from 'libsodium-wrappers'
 import crypto from 'node:crypto'
 import nacl from 'tweetnacl'
+import fs from 'fs/promises'
 
 const hexRegex = /^[a-f0-9]+$/
 const base64regex = /^([0-9a-zA-Z+/]{4})*(([0-9a-zA-Z+/]{2}==)|([0-9a-zA-Z+/]{3}=))?$/
@@ -50,9 +51,20 @@ export function getServerKey(): { privateKey: Buffer, publicKey: Buffer } {
 
 export async function loadServerKey() {
   if (!privateServerKey || !publicServerKey) {
-    const keypair = nacl.box.keyPair()
-    publicServerKey = Buffer.from(keypair.publicKey)
-    privateServerKey = Buffer.from(keypair.secretKey)
+    let keypair: nacl.BoxKeyPair | undefined
+
+    try {
+      const secretKey = await fs.readFile(__dirname + '../key_x25519')
+      if (secretKey.length !== 32) throw new Error('Invalid key length')
+      keypair = nacl.box.keyPair.fromSecretKey(secretKey)
+      await fs.writeFile(__dirname + '../key_x25519', keypair.secretKey)
+    } catch(e) {0}
+
+    if (!keypair) {
+      keypair = nacl.box.keyPair()
+      publicServerKey = Buffer.from(keypair.publicKey)
+      privateServerKey = Buffer.from(keypair.secretKey)
+    }
   }
 
   return {
