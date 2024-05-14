@@ -7,12 +7,20 @@ import SJSON from 'secure-json-parse'
 import { z } from 'zod'
 import chalk from 'chalk'
 import { loadRooms } from '@/rooms'
+import { loadConfig } from '@/config'
+
+console.log()
 
 const keys = await loadServerKey()
+const config = await loadConfig()
 const rooms = await loadRooms()
 
+const port = process.env.PORT || config.port || 3000
+const hostname = process.env.HOSTNAME || config.hostname
+
 Bun.serve({
-  hostname: process.env.HOSTNAME,
+  port,
+  hostname,
   async fetch(request: Request) {
     const endpoint = new URL(request.url).pathname
     if (endpoint === '/oxen/v4/lsrpc' && request.method === 'POST') {
@@ -71,7 +79,7 @@ Bun.serve({
 })
 
 console.log()
-console.log(`  SOGS started at ${chalk.bold(`${process.env.HOSTNAME || 'localhost'}:${process.env.PORT || 3000}`)}`)
-console.log(`\n    Public links to rooms:${[]}`)
+console.log(`  SOGS started at ${chalk.bold(`${hostname}:${port}`)}`)
+console.log(`\n    Public links to rooms:${rooms.map(room => `\n      - ${chalk.bold(`http://${hostname}:${port}/${room.token}?public_key=${keys.publicKey.toString('hex')}`)}`).join('')}`)
 console.log()
 console.log()

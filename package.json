@@ -10,6 +10,7 @@
     "@rmp135/sql-ts": "^2.1.0",
     "@types/bencode": "^2.0.4",
     "@types/bun": "^1.1.1",
+    "@types/lodash": "^4.17.1",
     "@typescript-eslint/eslint-plugin": "^5.38.0",
     "@typescript-eslint/parser": "^5.38.0",
     "eslint": "^8.8.0"
@@ -23,6 +24,7 @@
     "bun-sqlite-migrations": "^1.0.2",
     "chalk": "^5.3.0",
     "libsodium-wrappers": "^0.7.13",
+    "lodash": "^4.17.21",
     "secure-json-parse": "^2.7.0",
     "tweetnacl": "^1.0.3",
     "zod": "^3.23.8"

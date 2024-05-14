@@ -2,6 +2,7 @@ import sodium from 'libsodium-wrappers'
 import crypto from 'node:crypto'
 import nacl from 'tweetnacl'
 import fs from 'fs/promises'
+import chalk from 'chalk'
 
 const hexRegex = /^[a-f0-9]+$/
 const base64regex = /^([0-9a-zA-Z+/]{4})*(([0-9a-zA-Z+/]{2}==)|([0-9a-zA-Z+/]{3}=))?$/
@@ -49,22 +50,77 @@ export function getServerKey(): { privateKey: Buffer, publicKey: Buffer } {
   }
 }
 
+function generateNewKey(): nacl.BoxKeyPair {
+  const keypair = nacl.box.keyPair()
+  return keypair
+}
+
 export async function loadServerKey() {
   if (!privateServerKey || !publicServerKey) {
-    let keypair: nacl.BoxKeyPair | undefined
+    let keypair: nacl.BoxKeyPair
 
+    let keyfileExists = false
     try {
-      const secretKey = await fs.readFile(__dirname + '../key_x25519')
-      if (secretKey.length !== 32) throw new Error('Invalid key length')
-      keypair = nacl.box.keyPair.fromSecretKey(secretKey)
-      await fs.writeFile(__dirname + '../key_x25519', keypair.secretKey)
-    } catch(e) {0}
-
-    if (!keypair) {
-      keypair = nacl.box.keyPair()
-      publicServerKey = Buffer.from(keypair.publicKey)
-      privateServerKey = Buffer.from(keypair.secretKey)
+      await fs.access(__dirname + '/../key_x25519', fs.constants.F_OK)
+      keyfileExists = true
+    } catch {
+      keyfileExists = false
     }
+
+    let generatedNewKey = false
+    if (keyfileExists) {
+      let secretKey: Buffer
+      try {
+        secretKey = await fs.readFile(__dirname + '/../key_x25519')
+      } catch(e) {
+        console.error(chalk.bold(chalk.red('  [!] Failed to read key_x25519 [!]')))
+        console.error(chalk.red('  File can be seen but cannot be read.'))
+        console.error(chalk.red('  Please check file permissions.'))
+        console.log()
+        process.exit(0)
+      }
+      if (secretKey.length === 0) {
+        keypair = generateNewKey()
+        generatedNewKey = true
+      } else if (secretKey.length > 0 && secretKey.length !== 32) {
+        console.error(chalk.bold(chalk.red('  [!] File key_x25519 is corrupted [!]')))
+        console.error(chalk.red('  File can be seen and read but its length is not 32 bytes.'))
+        console.error(chalk.red('  Remove it and restart server to generate a new SOGS key.'))
+        console.log()
+        process.exit(0)
+      } else {
+        try {
+          keypair = nacl.box.keyPair.fromSecretKey(secretKey)
+        } catch {
+          console.error(chalk.bold(chalk.red('  [!] File key_x25519 is corrupted [!]')))
+          console.error(chalk.red('  File can be seen and read but its contents is not a valid key.'))
+          console.error(chalk.red('  Remove it and restart server to generate a new SOGS key.'))
+          console.log()
+          process.exit(0)
+        }
+      }
+    } else {
+      keypair = generateNewKey()
+      generatedNewKey = true
+    }
+
+    if (generatedNewKey) {
+      try {
+        await fs.writeFile(__dirname + '/../key_x25519', keypair.secretKey, { mode: 0o444 })
+        console.log('  > Generated SOGS key and saved to ./key_x25519')
+      } catch(e) {
+        console.error(chalk.bold(chalk.red('  [!] Can\'t write new SOGS key to ./key_x25519 [!]')))
+        if(e instanceof Error) {
+          console.error(chalk.red('  Details:'))
+          console.error(chalk.red(e.message))
+        }
+        console.log()
+        process.exit(0)
+      }
+    }
+
+    publicServerKey = Buffer.from(keypair.publicKey)
+    privateServerKey = Buffer.from(keypair.secretKey)
   }
 
   return {

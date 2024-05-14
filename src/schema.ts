@@ -3,199 +3,199 @@
 * Rerun sql-ts to regenerate this file.
 */
 export interface filesEntity {
-  'expiry'?: number | null;
-  'filename'?: string | null;
-  'id'?: number;
-  'message'?: number | null;
+  'expiry': number | null;
+  'filename': string | null;
+  'id': number;
+  'message': number | null;
   'path': string;
-  'room'?: number | null;
+  'room': number | null;
   'size': number;
-  'uploaded'?: number;
-  'uploader'?: number | null;
+  'uploaded': number;
+  'uploader': number | null;
 }
 export interface first_reactorsEntity {
-  '_order'?: any | null;
-  'at'?: number | null;
-  'reaction'?: number | null;
-  'user'?: number | null;
+  '_order': any | null;
+  'at': number | null;
+  'reaction': number | null;
+  'user': number | null;
 }
 export interface inboxEntity {
   'body': any;
-  'expiry'?: number | null;
-  'id'?: number | null;
-  'posted_at'?: number | null;
+  'expiry': number | null;
+  'id': number | null;
+  'posted_at': number | null;
   'recipient': number;
   'sender': number;
 }
 export interface message_detailsEntity {
-  'data'?: any | null;
-  'data_size'?: number | null;
-  'edited'?: number | null;
-  'filtered'?: boolean | null;
-  'id'?: number | null;
-  'posted'?: number | null;
-  'room'?: number | null;
-  'seqno'?: number | null;
-  'seqno_creation'?: number | null;
-  'seqno_data'?: number | null;
-  'seqno_reactions'?: number | null;
-  'session_id'?: string | null;
-  'signature'?: any | null;
-  'user'?: number | null;
-  'whisper'?: number | null;
-  'whisper_mods'?: boolean | null;
-  'whisper_to'?: string | null;
+  'data': any | null;
+  'data_size': number | null;
+  'edited': number | null;
+  'filtered': boolean | null;
+  'id': number | null;
+  'posted': number | null;
+  'room': number | null;
+  'seqno': number | null;
+  'seqno_creation': number | null;
+  'seqno_data': number | null;
+  'seqno_reactions': number | null;
+  'session_id': string | null;
+  'signature': any | null;
+  'user': number | null;
+  'whisper': number | null;
+  'whisper_mods': boolean | null;
+  'whisper_to': string | null;
 }
 export interface message_historyEntity {
   'data': string;
   'message': number;
-  'replaced'?: number;
+  'replaced': number;
   'signature': any;
 }
 export interface message_metadataEntity {
-  'data_size'?: number | null;
-  'data_unpadded'?: any | null;
-  'edited'?: number | null;
-  'filtered'?: boolean | null;
-  'id'?: number | null;
-  'posted'?: number | null;
-  'room'?: number | null;
-  'seqno'?: number | null;
-  'seqno_creation'?: number | null;
-  'seqno_data'?: number | null;
-  'seqno_reactions'?: number | null;
-  'session_id'?: string | null;
-  'signature_length'?: any | null;
-  'user'?: number | null;
-  'whisper_mods'?: boolean | null;
-  'whisper_to'?: string | null;
+  'data_size': number | null;
+  'data_unpadded': any | null;
+  'edited': number | null;
+  'filtered': boolean | null;
+  'id': number | null;
+  'posted': number | null;
+  'room': number | null;
+  'seqno': number | null;
+  'seqno_creation': number | null;
+  'seqno_data': number | null;
+  'seqno_reactions': number | null;
+  'session_id': string | null;
+  'signature_length': any | null;
+  'user': number | null;
+  'whisper_mods': boolean | null;
+  'whisper_to': string | null;
 }
 export interface message_reactionsEntity {
-  'at'?: number | null;
-  'id'?: number | null;
-  'message'?: number | null;
-  'reaction'?: string | null;
-  'user'?: number | null;
+  'at': number | null;
+  'id': number | null;
+  'message': number | null;
+  'reaction': string | null;
+  'user': number | null;
 }
 export interface messagesEntity {
-  'data'?: any | null;
-  'data_size'?: number | null;
-  'edited'?: number | null;
-  'filtered'?: boolean;
-  'id'?: number;
-  'posted'?: number;
+  'data': any | null;
+  'data_size': number | null;
+  'edited': number | null;
+  'filtered': boolean;
+  'id': number;
+  'posted': number;
   'room': number;
-  'seqno'?: number;
-  'seqno_creation'?: number;
-  'seqno_data'?: number;
-  'seqno_reactions'?: number;
-  'signature'?: any | null;
+  'seqno': number;
+  'seqno_creation': number;
+  'seqno_data': number;
+  'seqno_reactions': number;
+  'signature': any | null;
   'user': number;
-  'whisper'?: number | null;
-  'whisper_mods'?: boolean;
+  'whisper': number | null;
+  'whisper_mods': boolean;
 }
 export interface needs_blindingEntity {
-  'blinded_abs'?: string;
+  'blinded_abs': string;
   'user': number;
 }
 export interface pinned_messagesEntity {
-  'message'?: number;
-  'pinned_at'?: number;
+  'message': number;
+  'pinned_at': number;
   'pinned_by': number;
-  'room'?: number;
+  'room': number;
 }
 export interface reactionsEntity {
-  'id'?: number;
+  'id': number;
   'message': number;
   'reaction': string;
 }
 export interface room_moderatorsEntity {
-  'admin'?: any | null;
-  'global_moderator'?: any | null;
-  'room'?: number | null;
-  'room_moderator'?: any | null;
-  'session_id'?: string | null;
-  'user'?: number | null;
-  'visible_mod'?: any | null;
+  'admin': any | null;
+  'global_moderator': any | null;
+  'room': number | null;
+  'room_moderator': any | null;
+  'session_id': string | null;
+  'user': number | null;
+  'visible_mod': any | null;
 }
 export interface room_usersEntity {
-  'last_active'?: number;
-  'room'?: number;
-  'user'?: number;
+  'last_active': number;
+  'room': number;
+  'user': number;
 }
 export interface roomsEntity {
-  'accessible'?: boolean;
-  'active_users'?: number;
-  'created'?: number;
-  'description'?: string | null;
-  'id'?: number;
-  'image'?: number | null;
-  'info_updates'?: number;
-  'message_sequence'?: number;
+  'accessible': boolean;
+  'active_users': number;
+  'created': number;
+  'description': string | null;
+  'id': number;
+  'image': number | null;
+  'info_updates': number;
+  'message_sequence': number;
   'name': string;
-  'read'?: boolean;
+  'read': boolean;
   'token': string;
-  'upload'?: boolean;
-  'write'?: boolean;
+  'upload': boolean;
+  'write': boolean;
 }
 export interface user_ban_futuresEntity {
   'at': number;
   'banned': boolean;
-  'room'?: number | null;
+  'room': number | null;
   'user': number;
 }
 export interface user_permission_futuresEntity {
   'at': number;
-  'read'?: boolean | null;
+  'read': boolean | null;
   'room': number;
-  'upload'?: boolean | null;
+  'upload': boolean | null;
   'user': number;
-  'write'?: boolean | null;
+  'write': boolean | null;
 }
 export interface user_permission_overridesEntity {
-  'accessible'?: boolean | null;
-  'admin'?: boolean;
-  'banned'?: boolean;
-  'moderator'?: boolean;
-  'read'?: boolean | null;
-  'room'?: number;
-  'upload'?: boolean | null;
-  'user'?: number;
-  'visible_mod'?: boolean;
-  'write'?: boolean | null;
+  'accessible': boolean | null;
+  'admin': boolean;
+  'banned': boolean;
+  'moderator': boolean;
+  'read': boolean | null;
+  'room': number;
+  'upload': boolean | null;
+  'user': number;
+  'visible_mod': boolean;
+  'write': boolean | null;
 }
 export interface user_permissionsEntity {
-  'accessible'?: any | null;
-  'admin'?: any | null;
-  'banned'?: any | null;
-  'global_moderator'?: boolean | null;
-  'moderator'?: any | null;
-  'read'?: any | null;
-  'room'?: number | null;
-  'room_moderator'?: any | null;
-  'session_id'?: string | null;
-  'upload'?: any | null;
-  'user'?: number | null;
-  'visible_mod'?: any | null;
-  'write'?: any | null;
+  'accessible': any | null;
+  'admin': any | null;
+  'banned': any | null;
+  'global_moderator': boolean | null;
+  'moderator': any | null;
+  'read': any | null;
+  'room': number | null;
+  'room_moderator': any | null;
+  'session_id': string | null;
+  'upload': any | null;
+  'user': number | null;
+  'visible_mod': any | null;
+  'write': any | null;
 }
 export interface user_reactionsEntity {
-  'at'?: number;
-  'reaction'?: number;
-  'user'?: number;
+  'at': number;
+  'reaction': number;
+  'user': number;
 }
 export interface user_request_noncesEntity {
-  'expiry'?: number;
+  'expiry': number;
   'nonce': any;
   'user': number;
 }
 export interface usersEntity {
-  'admin'?: boolean;
-  'banned'?: boolean;
-  'created'?: number;
-  'id'?: number;
-  'last_active'?: number;
-  'moderator'?: boolean;
+  'admin': boolean;
+  'banned': boolean;
+  'created': number;
+  'id': number;
+  'last_active': number;
+  'moderator': boolean;
   'session_id': string;
-  'visible_mod'?: boolean;
+  'visible_mod': boolean;
 }
