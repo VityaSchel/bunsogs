@@ -1,5 +1,5 @@
 import { getConfig } from '@/config'
-import { getPinnedMessages, getRoomAdminsAndMods, getRooms } from '@/db'
+import { getPinnedMessagesFromDb, getRoomAdminsAndModsFromDb, getRoomsFromDb } from '@/db'
 
 type PinnedMessage = {
   /** The numeric message id. */
@@ -106,16 +106,21 @@ export class Room {
 
 }
 
-let rooms: Room[] = []
+let rooms: Map<Room['token'], Room> = new Map()
 export async function loadRooms() {
   const config = getConfig()
-  const roomsDb = await getRooms()
+  const roomsDb = await getRoomsFromDb()
 
-  rooms = []
+  rooms = new Map()
   
   for (const roomDb of roomsDb) {
-    const { admins, moderators, hiddenAdmins, hiddenModerators } = await getRoomAdminsAndMods(roomDb.id)
-    rooms.push(new Room(
+    const { 
+      admins, 
+      moderators, 
+      hiddenAdmins,
+      hiddenModerators 
+    } = await getRoomAdminsAndModsFromDb(roomDb.id)
+    rooms.set(roomDb.token, new Room(
       roomDb.id,
       roomDb.token,
       roomDb.active_users ?? 0,
@@ -125,7 +130,7 @@ export async function loadRooms() {
       roomDb.info_updates ?? 0,
       roomDb.message_sequence ?? 0,
       Math.floor(roomDb.created * 1000),
-      await getPinnedMessages(roomDb.id),
+      await getPinnedMessagesFromDb(roomDb.id),
       moderators,
       admins,
       roomDb.read,
@@ -138,5 +143,9 @@ export async function loadRooms() {
     ))
   }
 
+  return rooms
+}
+
+export function getRooms() {
   return rooms
 }

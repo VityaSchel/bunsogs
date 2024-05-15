@@ -60,26 +60,41 @@ Bun.serve({
       const responseEncrypted = response && encryptChannelEncryption(encType, responseBencoded, remotePk)
       return new Response(responseEncrypted, { status })
     } else {
-      const body = await z.record(z.string(), z.string())
-        .safeParseAsync(await request.json())
-      
-      if(!body.success) {
-        return new Response(null, { status: 415 })
+      let body: Record<string, string> | null = null
+      if (request.method === 'POST') {
+        const bodyParsing = await z.record(z.string(), z.string())
+          .safeParseAsync(await request.json())
+        
+        if(!bodyParsing.success) {
+          return new Response(null, { status: 415 })
+        }
+
+        body = bodyParsing.data
       }
       
-      const { response, status } = await handleIncomingRequest({
+      const { response, status, contentType } = await handleIncomingRequest({
         endpoint,
         body,
         method: request.method
       })
 
-      return new Response(response, { status })
+      return new Response(response, { 
+        status, 
+        headers: { 
+          ...(contentType && { 'content-type': contentType })
+        } 
+      })
     }
   }
 })
 
 console.log()
 console.log(`  SOGS started at ${chalk.bold(`${hostname}:${port}`)}`)
-console.log(`\n    Public links to rooms:${rooms.map(room => `\n      - ${chalk.bold(`http://${hostname}:${port}/${room.token}?public_key=${keys.publicKey.toString('hex')}`)}`).join('')}`)
+console.log(`\n    Public links to rooms:${
+  Array.from(rooms.values())
+    .map(room => `\n      - ${
+      chalk.bold(`http://${hostname}:${port}/${room.token}?public_key=${keys.publicKey.toString('hex')}`)}`
+    ).join('')
+}`)
 console.log()
 console.log()

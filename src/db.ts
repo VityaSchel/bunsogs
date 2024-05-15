@@ -17,12 +17,12 @@ migrate(db, migrations)
 
 const getUserQuery = await db.query<usersEntity, { $id: number }>('SELECT session_id FROM users WHERE id = :id')
 
-export async function getRooms() {
+export async function getRoomsFromDb() {
   const rooms = await db.query<roomsEntity, []>('SELECT * FROM rooms').all()
   return rooms
 }
 
-export async function getPinnedMessages(roomId: number) {
+export async function getPinnedMessagesFromDb(roomId: number) {
   const pinnedMessages = await db.query<pinned_messagesEntity, { $id: number }>(
     `SELECT message, pinned_at, users.session_id
     FROM pinned_messages JOIN users ON pinned_by = users.id
@@ -40,7 +40,7 @@ export async function getPinnedMessages(roomId: number) {
   }))
 }
 
-export async function getRoomAdminsAndMods(roomId: number) {
+export async function getRoomAdminsAndModsFromDb(roomId: number) {
   const roomAdminsAndMods = await db.query<room_moderatorsEntity, { $id: number }>(
     `SELECT session_id, visible_mod, admin FROM room_moderators
     WHERE room = $id
