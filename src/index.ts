@@ -26,29 +26,68 @@ Bun.serve({
     if (endpoint === '/oxen/v4/lsrpc' && request.method === 'POST') {
       const body = Buffer.from(await request.arrayBuffer())
       const { payload: payloadBencoded, encType, remotePk } = parseBody(body)
-      const payloadSerialized = bencode.decode(payloadBencoded, 'utf-8')[0]
-      const payloadDeserialized = SJSON.parse(payloadSerialized)
+      const payloadsSerialized = bencode.decode(payloadBencoded, 'utf-8') as string[]
+      const payloadsDeserialized = payloadsSerialized.map(p => SJSON.parse(p))
 
-      const payload = await z.object({
-        endpoint: z.string(),
-        method: z.string()
-      }).safeParseAsync(payloadDeserialized)
+      const handleRequest = async (payloadDeserialized: any) => {
+        const payload = await z.object({
+          endpoint: z.string(),
+          method: z.string()
+        }).safeParseAsync(payloadDeserialized)
 
-      if(!payload.success) {
-        return new Response(null, { status: 400 })
+        if(!payload.success) {
+          return { body: null, status: 400 }
+        }
+
+        const { status, response, contentType } = await handleIncomingRequest({
+          endpoint: payload.data.endpoint,
+          method: payload.data.method,
+          body: null
+        })
+
+        if (response === null) {
+          return { body: null, status }
+        } else {
+          return { body: response, status, contentType }
+        }
       }
 
-      const { status, response, contentType } = await handleIncomingRequest({
-        endpoint: payload.data.endpoint,
-        method: payload.data.method, 
-        body: null
-      })
-
-      if (response === null) {
-        return new Response(null, { status })
+      let targetPayloadDeserialized = payloadsDeserialized[0]
+      const isBatchRequest = typeof targetPayloadDeserialized === 'object' &&
+        'endpoint' in targetPayloadDeserialized &&
+        targetPayloadDeserialized.endpoint === '/batch'
+      let responseBody: any, status: number, contentType: string | undefined
+      if (isBatchRequest) {
+        targetPayloadDeserialized = payloadsDeserialized[1] as Array<any>
+        const responses = await Promise.all(targetPayloadDeserialized.map(async (tpd: any) => {
+          try {
+            const { path, ...inc } = tpd
+            const { status, ...resp } = await handleRequest({ endpoint: path, ...inc })
+            return { code: status, ...resp }
+          } catch {
+            return { body: null, status: 500 }
+          }
+        })) as ReturnType<typeof handleRequest>[]
+        status = 200
+        responseBody = JSON.stringify(responses)
+      } else {
+        const response = await handleRequest(targetPayloadDeserialized)
+        if (response.body === null) {
+          return new Response(null, { status: response.status })
+        } else {
+          if (response.contentType === 'application/json') {
+            responseBody = JSON.stringify(response.body)
+          } else {
+            responseBody = response.body
+          }
+          status = response.status
+          contentType = response.contentType
+        }
       }
 
-      const responseData = Buffer.from(response)
+      console.log('responded with', responseBody)
+
+      const responseData = Buffer.from(responseBody)
       const responseMeta = Buffer.from(JSON.stringify({ 'code': status, 'headers': { 'content-type': contentType }}))
       const lenMeta = Buffer.from(`${responseMeta.length}:`)
       const lenData = Buffer.from(`${responseData.length}:`)
@@ -57,7 +96,7 @@ Bun.serve({
 
       const responseBencoded = Buffer.concat([start, lenMeta, responseMeta, lenData, responseData, end])
 
-      const responseEncrypted = response && encryptChannelEncryption(encType, responseBencoded, remotePk)
+      const responseEncrypted = encryptChannelEncryption(encType, responseBencoded, remotePk)
       return new Response(responseEncrypted, { status })
     } else {
       let body: Record<string, string> | null = null
