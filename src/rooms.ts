@@ -1,5 +1,6 @@
 import { getConfig } from '@/config'
-import { getPinnedMessagesFromDb, getRoomAdminsAndModsFromDb, getRoomsFromDb } from '@/db'
+import { db, getPinnedMessagesFromDb, getRoomAdminsAndModsFromDb, getRoomsFromDb } from '@/db'
+import type { user_permissionsEntity } from '@/schema'
 
 type PinnedMessage = {
   /** The numeric message id. */
@@ -10,6 +11,8 @@ type PinnedMessage = {
       author of the message). */
   pinnedBy: string
 }
+
+export type UserPermissions = { read: boolean, write: boolean, upload: boolean, banned: boolean }
 
 export class Room {
   /** Unique identifier for database */
@@ -102,7 +105,28 @@ export class Room {
     this.hiddenAdmins = hiddenAdmins
   }
 
+  _permissionsCache: Map<string, UserPermissions> = new Map()
+  async getUserPermissions(userId: string): Promise<UserPermissions> {
+    const permissionsCached = this._permissionsCache.get(userId)
+    if (permissionsCached !== undefined) {
+      return permissionsCached
+    }
 
+    const roomId = this.id
+    const permissionsDb = db.query<user_permissionsEntity, { $roomId: number, $user: string }>(`
+      SELECT banned, read, accessible, write, upload, moderator, admin
+      FROM user_permissions
+      WHERE room = $roomId AND "user" = $user
+    `).get({ $roomId: roomId, $user: userId })
+    const permissions = {
+      read: permissionsDb?.read ?? this.defaultRead,
+      write: permissionsDb?.write ?? this.defaultWrite,
+      upload: permissionsDb?.upload ?? this.defaultUpload,
+      banned: permissionsDb?.banned ?? false
+    }
+    this._permissionsCache.set(userId, permissions)
+    return permissions
+  }
 }
 
 let rooms: Map<Room['token'], Room> = new Map()

@@ -33,7 +33,7 @@ export async function getRoomUpdates(req: SogsRequest): Promise<SogsResponse> {
       default_upload: room.defaultUpload,
       default_accessible: room.defaultAccessible,
       ...(includeDetails && { 
-        details: await getRoomDetails(room, null)
+        details: await getRoomDetails(room, req.user)
       })
     },
     contentType: 'application/json'

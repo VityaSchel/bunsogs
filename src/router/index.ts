@@ -2,12 +2,15 @@ import FindMyWay, { type HTTPMethod } from 'find-my-way'
 import { getCapabilities } from '@/router/get-capabilities'
 import { getRoom } from '@/router/get-room'
 import { getRoomUpdates } from '@/router/get-room-updates'
+import type { SogsRequestUser } from '@/middlewares/auth'
 
 export type SogsRequest = {
   endpoint: string
   method: string
-  body: object | null
+  body: string | null
   params?: { [key: string]: string | undefined }
+  headers?: { [key: string]: string | undefined }
+  user: SogsRequestUser | null
 }
 
 export type SogsResponse = {

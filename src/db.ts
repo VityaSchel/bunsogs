@@ -8,7 +8,7 @@ import { getServerKey } from '@/keypairs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url)) + '/'
 
-const db = new Database(__dirname + '../db.sqlite3', { create: true })
+export const db = new Database(__dirname + '../db.sqlite3', { create: true })
 const newDatabase = await db.query('SELECT name FROM sqlite_master WHERE type="table"').all().length === 0
 
 const migrations = getMigrations(__dirname + '../migrations')

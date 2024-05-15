@@ -1,4 +1,6 @@
-import { Room, getRooms } from '@/rooms'
+import { isUserGlobalAdmin, isUserGlobalModerator } from '@/global-settings'
+import type { SogsRequestUser } from '@/middlewares/auth'
+import { Room, getRooms, type UserPermissions } from '@/rooms'
 import type { SogsRequest, SogsResponse } from '@/router'
 
 export async function getRoom(req: SogsRequest): Promise<SogsResponse> {
@@ -26,13 +28,29 @@ export async function getRoom(req: SogsRequest): Promise<SogsResponse> {
   }
 }
 
-export async function getRoomDetails(room: Room, user: any | null) {
-  const isUserGlobalAdmin = false
-  const isUserGlobalModerator = isUserGlobalAdmin || false
-  const isUserModerator = isUserGlobalModerator || false
-  const isUserAdmin = isUserModerator || false
+export async function getRoomDetails(room: Room, user: SogsRequestUser | null) {
+  let userIsGlobalAdmin = false
+  let userIsGlobalModerator = false
+  let userIsModerator = false
+  let userIsAdmin = false
+  if(user !== null) {
+    userIsGlobalAdmin = isUserGlobalAdmin(user)
+    userIsGlobalModerator = userIsGlobalAdmin || isUserGlobalModerator(user)
+    userIsModerator = userIsGlobalModerator || room.moderators.includes(user)
+    userIsAdmin = userIsModerator || room.admins.includes(user)
+  }
 
-  const userPermissions = ['read', 'write']
+  let userPermissions: UserPermissions
+  if(user !== null) {
+    userPermissions = await room.getUserPermissions(user)
+  } else {
+    userPermissions = {
+      read: room.defaultRead,
+      write: room.defaultWrite,
+      upload: room.defaultUpload,
+      banned: false
+    }
+  }
 
   return {
     active_users: room.activeUsers,
@@ -45,7 +63,7 @@ export async function getRoomDetails(room: Room, user: any | null) {
     message_sequence: room.messageSequence,
     moderators: room.moderators,
     name: room.name,
-    ...((isUserAdmin || isUserModerator) ? {
+    ...((userIsAdmin || userIsModerator) ? {
       default_read: room.defaultRead,
       default_write: room.defaultWrite,
       default_upload: room.defaultUpload,
@@ -59,12 +77,12 @@ export async function getRoomDetails(room: Room, user: any | null) {
       pinned_at: pm.pinnedAt,
       pinned_by: pm.pinnedBy
     })),
-    read: userPermissions.includes('read'),
-    write: userPermissions.includes('write'),
-    upload: userPermissions.includes('upload'),
-    moderator: isUserModerator,
-    admin: isUserAdmin,
-    global_moderator: isUserGlobalModerator,
-    global_admin: isUserGlobalAdmin
+    read: userPermissions.banned ? false : userPermissions.read,
+    write: userPermissions.banned ? false : userPermissions.write,
+    upload: userPermissions.banned ? false : userPermissions.upload,
+    moderator: userIsModerator,
+    admin: userIsAdmin,
+    global_moderator: userIsGlobalModerator,
+    global_admin: userIsGlobalAdmin
   }
 }
