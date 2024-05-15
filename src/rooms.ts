@@ -41,8 +41,7 @@ export class Room {
       versions of SOGS, this is a better milliseconds-since-epoch unix timestamp, not a floating python-style
       seconds-since-epoch value. */
   created: number
-  /** Array of pinned message information (omitted entirely if there are no
-      pinned messages). */
+  /** Array of pinned message information */
   pinnedMessages: PinnedMessage[]
   /** Array of Session IDs of the room's publicly viewable moderators. This does not include room administrators nor hidden moderators. */
   moderators: string[]

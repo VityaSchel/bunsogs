@@ -1,7 +1,7 @@
-import { getRooms } from '@/rooms'
+import FindMyWay, { type HTTPMethod } from 'find-my-way'
 import { getCapabilities } from '@/router/get-capabilities'
 import { getRoom } from '@/router/get-room'
-import FindMyWay, { type HTTPMethod } from 'find-my-way'
+import { getRoomUpdates } from '@/router/get-room-updates'
 
 export type SogsRequest = {
   endpoint: string
@@ -25,7 +25,7 @@ router.on('GET', '/capabilities', getCapabilities)
 // @ts-expect-error fmw expects a handler with a specific signature
 router.on('GET', '/room/:id', getRoom)
 // @ts-expect-error fmw expects a handler with a specific signature
-router.on('POST', '/batch', batchRequest)
+router.on('GET', '/room/:id/pollInfo/:info_updates', getRoomUpdates)
 
 export async function handleIncomingRequest(req: SogsRequest): Promise<SogsResponse> {
   console.log('handled', req.endpoint, req.method, req.body) // TODO: remove
@@ -51,15 +51,8 @@ export async function handleIncomingRequest(req: SogsRequest): Promise<SogsRespo
   }
 }
 
-function batchRequest(req: SogsRequest): SogsResponse {
-  console.log(req)
-  return {
-    response: null,
-    status: 501
-  }
-}
-
 const routesMap: { [route: string]: (req: SogsRequest) => SogsResponse | Promise<SogsResponse> } = {
   getCapabilities,
-  getRoom
+  getRoom,
+  getRoomUpdates
 }
