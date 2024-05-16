@@ -50,8 +50,7 @@ export async function auth(req: Omit<SogsRequest, 'user'>): Promise<SogsRequestU
 
     const sessionID = '05' + Buffer.from(sodium.crypto_sign_ed25519_pk_to_curve25519(publicKeyRaw)).toString('hex')
     return sessionID
-  } catch(e) {
-    console.warn(e) // TODO: remove
+  } catch {
     return null
   }
 }

@@ -1,6 +1,6 @@
 import { loadServerKey } from '@/keypairs'
 import { loadConfig } from '@/config'
-import { loadRooms } from '@/rooms'
+import { loadRooms } from '@/room'
 import { parseBody } from '@/parser'
 import { encryptChannelEncryption } from '@/crypto'
 import { handleIncomingRequest, type SogsRequest } from '@/router'
@@ -48,6 +48,7 @@ const handleOnionConnection = async (request: Request) => {
   if (isBatchRequest) {
     status = 200
     responseBody = await handleBatchOnionRequest(payloadsDeserialized)
+    contentType = 'application/json'
   } else {
     const sogsRequest: Omit<SogsRequest, 'user'> = {
       ...targetPayloadDeserialized,
@@ -70,7 +71,7 @@ const handleOnionConnection = async (request: Request) => {
     }
   }
 
-  console.log('responded with', responseBody)
+  // console.log('responded with', responseBody) TODO: remove
 
   const responseData = Buffer.from(responseBody)
   const responseMeta = Buffer.from(JSON.stringify({ 'code': status, 'headers': { 'content-type': contentType } }))
@@ -91,7 +92,7 @@ const handleBatchOnionRequest = async (payloadsDeserialized: any[]) => {
   const responses = await Promise.all(payload.map(async (tpd: any) => {
     try {
       const { path, ...inc } = tpd
-      const { status, ...resp } = await handleOnionRequest(
+      const { status, body, contentType } = await handleOnionRequest(
         {
           endpoint: path,
           ...inc,
@@ -104,8 +105,11 @@ const handleBatchOnionRequest = async (payloadsDeserialized: any[]) => {
           body: JSON.stringify(payloadsDeserialized[1])
         })
       )
-      return { code: status, ...resp }
-    } catch {
+      return { code: status, body, headers: { 'content-type': contentType } }
+    } catch(e) {
+      if(process.env.NODE_ENV !== 'production') {
+        console.error(e)
+      }
       return { body: null, status: 500 }
     }
   })) as Awaited<ReturnType<typeof handleOnionRequest>>[]

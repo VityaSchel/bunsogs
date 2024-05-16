@@ -1,8 +1,9 @@
 import FindMyWay, { type HTTPMethod } from 'find-my-way'
+import type { SogsRequestUser } from '@/middlewares/auth'
 import { getCapabilities } from '@/router/get-capabilities'
 import { getRoom } from '@/router/get-room'
 import { getRoomUpdates } from '@/router/get-room-updates'
-import type { SogsRequestUser } from '@/middlewares/auth'
+import { getRoomRecentMessages } from '@/router/get-room-recent-messages'
 
 export type SogsRequest = {
   endpoint: string
@@ -10,6 +11,7 @@ export type SogsRequest = {
   body: string | null
   params?: { [key: string]: string | undefined }
   headers?: { [key: string]: string | undefined }
+  searchParams?: { [k: string]: string }
   user: SogsRequestUser | null
 }
 
@@ -29,9 +31,10 @@ router.on('GET', '/capabilities', getCapabilities)
 router.on('GET', '/room/:id', getRoom)
 // @ts-expect-error fmw expects a handler with a specific signature
 router.on('GET', '/room/:id/pollInfo/:info_updates', getRoomUpdates)
+// @ts-expect-error fmw expects a handler with a specific signature
+router.on('GET', '/room/:id/messages/recent', getRoomRecentMessages)
 
 export async function handleIncomingRequest(req: SogsRequest): Promise<SogsResponse> {
-  console.log('handled', req.endpoint, req.method, req.body) // TODO: remove
   const supportedMethods = ['GET', 'POST', 'PUT', 'DELETE']
 
   if (!supportedMethods.includes(req.method)) {
@@ -44,7 +47,7 @@ export async function handleIncomingRequest(req: SogsRequest): Promise<SogsRespo
   const route = router.find(req.method as HTTPMethod, req.endpoint)
   const handler = route ? routesMap[route.handler.name] : null
   if (route && handler) {
-    return await handler({ ...req, params: route.params })
+    return await handler({ ...req, params: route.params, searchParams: route.searchParams })
   } else {
     console.warn('Unknown route', req.method, req.endpoint)
     return {
@@ -57,5 +60,6 @@ export async function handleIncomingRequest(req: SogsRequest): Promise<SogsRespo
 const routesMap: { [route: string]: (req: SogsRequest) => SogsResponse | Promise<SogsResponse> } = {
   getCapabilities,
   getRoom,
-  getRoomUpdates
+  getRoomUpdates,
+  getRoomRecentMessages
 }

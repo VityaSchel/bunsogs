@@ -1,4 +1,4 @@
-import { getRooms } from '@/rooms'
+import { getRooms } from '@/room'
 import type { SogsRequest, SogsResponse } from '@/router'
 import { getRoomDetails } from '@/router/get-room'
 

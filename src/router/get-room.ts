@@ -1,6 +1,6 @@
 import { isUserGlobalAdmin, isUserGlobalModerator } from '@/global-settings'
 import type { SogsRequestUser } from '@/middlewares/auth'
-import { Room, getRooms, type UserPermissions } from '@/rooms'
+import { Room, getRooms, type UserPermissions } from '@/room'
 import type { SogsRequest, SogsResponse } from '@/router'
 
 export async function getRoom(req: SogsRequest): Promise<SogsResponse> {
