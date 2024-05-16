@@ -1,5 +1,6 @@
 import { getConfig } from '@/config'
 import { db, getPinnedMessagesFromDb, getRoomAdminsAndModsFromDb, getRoomsFromDb } from '@/db'
+import { BadPermission, PostRateLimited } from '@/errors'
 import { isUserGlobalAdmin, isUserGlobalModerator } from '@/global-settings'
 import type { message_detailsEntity, user_permissionsEntity } from '@/schema'
 import * as Utils from '@/utils'
@@ -14,7 +15,15 @@ type PinnedMessage = {
   pinnedBy: string
 }
 
-export type UserPermissions = { read: boolean, write: boolean, upload: boolean, banned: boolean }
+export type UserPermissions = { 
+  read: boolean, 
+  write: boolean, 
+  upload: boolean, 
+  banned: boolean,
+  accessible: boolean,
+  moderator: boolean,
+  admin: boolean
+}
 
 export class Room {
   /** Unique identifier for database */
@@ -64,6 +73,12 @@ export class Room {
   defaultWrite: boolean
   /** Indicates whether new users have upload permission in the room. */
   defaultUpload: boolean
+  rateLimitSettings: {
+    /** The number of messages a user can post in the rate limit interval before being rate limited. Set to 0 to disable rate limit */
+    rateLimitSize: number
+    /** The length of the rate limit interval in seconds. */
+    rateLimitInterval: number
+  }
 
   constructor(
     id: number,
@@ -84,7 +99,11 @@ export class Room {
     defaultUpload: boolean,
     imageId: number | null,
     hiddenModerators: string[],
-    hiddenAdmins: string[]
+    hiddenAdmins: string[],
+    rateLimitSettings: {
+      rateLimitSize: number
+      rateLimitInterval: number
+    }
   ) {
     this.id = id
     this.token = token
@@ -105,6 +124,7 @@ export class Room {
     this.imageId = imageId
     this.hiddenModerators = hiddenModerators
     this.hiddenAdmins = hiddenAdmins
+    this.rateLimitSettings = rateLimitSettings
   }
 
   _permissionsCache: Map<string, UserPermissions> = new Map()
@@ -121,10 +141,13 @@ export class Room {
       WHERE room = $roomId AND "user" = $user
     `).get({ $roomId: roomId, $user: userId })
     const permissions = {
-      read: permissionsDb?.read ?? this.defaultRead,
-      write: permissionsDb?.write ?? this.defaultWrite,
-      upload: permissionsDb?.upload ?? this.defaultUpload,
-      banned: permissionsDb?.banned ?? false
+      banned: Boolean(permissionsDb?.banned),
+      read: Boolean(permissionsDb?.read ?? this.defaultRead),
+      accessible: Boolean(permissionsDb?.accessible ?? this.defaultAccessible),
+      write: Boolean(permissionsDb?.write ?? this.defaultWrite),
+      upload: Boolean(permissionsDb?.upload ?? this.defaultUpload),
+      moderator: Boolean(permissionsDb?.moderator),
+      admin: Boolean(permissionsDb?.admin)
     }
     this._permissionsCache.set(userId, permissions)
     return permissions
@@ -199,8 +222,11 @@ export class Room {
     { before: number } |
     { recent: boolean } |
     { single: number },
-  { limit, reactorLimit }: { limit: number, reactorLimit: number }
-  ) {
+  { limit, reactorLimit, reactions }: { 
+    limit: number, 
+    reactorLimit: number,
+    reactions: boolean
+  }) {
     const mod = user === null 
       ? false
       : (
@@ -320,7 +346,7 @@ export class Room {
       msgs.push(msg)
     }
 
-    if ('reactions' in options) {
+    if (reactions) {
       const reacts = await this.getReactions(
         // Fetch reactions for messages, but skip deleted messages (that have data set to an
         // explicit None) since we already know they don't have reactions.
@@ -346,6 +372,114 @@ export class Room {
       ON CONFLICT("user", room) DO UPDATE
       SET last_active = $now
     `).run({ $user: user, $roomId: this.id, $now: Math.floor(Date.now() / 1000) })
+  }
+
+  /**
+   * Adds a post to the room.  The user must have write permissions.
+
+   * Raises BadPermission if the user doesn't have posting permission; PostRejected if the
+   * post was rejected (such as subclass PostRateLimited() if the post was rejected for too
+   * frequent posting).
+
+   * Returns the message details.
+   */
+  async addPost(
+    user: string,
+    data: Buffer,
+    signature: Buffer,
+    whisperTo?: string,
+    whisperMods?: boolean,
+    files?: number[]
+  ) {
+    const permissions = await this.getUserPermissions(user)
+
+    if (!permissions.write) {
+      throw new BadPermission()
+    }
+
+    if ((whisperTo || whisperMods) && !permissions.moderator) {
+      throw new BadPermission()
+    }
+
+    if(whisperTo === user) {
+      whisperTo = undefined
+    }
+
+    // TODO: filtering stuff (e.g. antispam)
+    const filtered = false
+
+    if(this.rateLimitSettings.rateLimitSize > 0 && !permissions.admin) {
+      const sinceLimit = Date.now() - this.rateLimitSettings.rateLimitInterval * 1000
+      const recentCount = db.prepare<{ 'COUNT(*)': number }, { $roomId: number, $user: string, $since: number }>(`
+        SELECT COUNT(*) FROM messages
+        WHERE room = $roomId AND "user" = $user AND posted >= $since
+      `).get({ $roomId: this.id, $user: user, $since: sinceLimit })?.['COUNT(*)']
+
+      if (recentCount !== undefined && recentCount >= this.rateLimitSettings.rateLimitSize) {
+        throw new PostRateLimited()
+      }
+    }
+
+    const dataSize = data.length
+    const unpaddedData = Utils.removeSessionMessagePadding(data)
+
+    const msgInsert = db.prepare<{ id: number }, { $roomId: number, $user: string, $data: Buffer, $dataSize: number, $signature: Buffer, $filtered: boolean, $whisper: string | null, $whisperMods: boolean | 0 }>(`
+      INSERT INTO messages
+        (room, "user", data, data_size, signature, filtered, whisper, whisper_mods)
+        VALUES
+        ($roomId, $user, $data, $dataSize, $signature, $filtered, $whisper, $whisperMods)
+      RETURNING id
+    `).get({
+      $roomId: this.id,
+      $user: user,
+      $data: unpaddedData,
+      $dataSize: dataSize,
+      $signature: signature,
+      $filtered: filtered,
+      $whisper: whisperTo ?? null,
+      $whisperMods: whisperMods || 0
+    })
+
+    if(files?.length) {
+      // Take ownership of any uploaded files attached to the post:
+      // this._own_files(msg_id, files, user) TODO
+    }
+
+    if(msgInsert === null) {
+      throw new Error('Failed to insert message')
+    }
+
+    const msgId = msgInsert.id
+
+    const row = db.prepare<{ posted: number, seqno: number }, { $msgId: number }>(
+      'SELECT posted, seqno FROM messages WHERE id = $msgId'
+    ).get({ $msgId: msgId })
+    if(row === null) {
+      throw new Error('Failed to fetch message')
+    }
+
+    this.messageSequence++
+
+    const msg: { [k in keyof message_detailsEntity]?: any } & { reactions: Record<string, any> } = {
+      id: msgId,
+      session_id: user,
+      posted: row.posted,
+      seqno: row.seqno,
+      data: data.toString('base64'),
+      signature: signature.toString('base64'),
+      reactions: {},
+      ...(filtered ? { filtered: true } : {}),
+    }
+
+    if(whisperTo || whisperMods) {
+      msg['whisper'] = true
+      msg['whisper_mods'] = whisperMods
+      if(whisperTo) {
+        msg['whisper_to'] = whisperTo
+      }
+    }
+
+    return msg
   }
 }
 
@@ -376,13 +510,17 @@ export async function loadRooms() {
       await getPinnedMessagesFromDb(roomDb.id),
       moderators,
       admins,
-      roomDb.read,
-      roomDb.accessible,
-      roomDb.write,
-      roomDb.upload,
+      Boolean(roomDb.read),
+      Boolean(roomDb.accessible),
+      Boolean(roomDb.write),
+      Boolean(roomDb.upload),
       roomDb.image,
       hiddenModerators,
-      hiddenAdmins
+      hiddenAdmins,
+      {
+        rateLimitSize: roomDb.rate_limit_size ?? 5,
+        rateLimitInterval: roomDb.rate_limit_interval ?? 16.0
+      }
     ))
   }
 

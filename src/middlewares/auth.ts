@@ -1,12 +1,16 @@
 import { getServerKey } from '@/keypairs'
-import type { SogsRequest } from '@/router'
 import { z } from 'zod'
 import crypto from 'crypto'
 import sodium from 'libsodium-wrappers'
 
 export type SogsRequestUser = string
 
-export async function auth(req: Omit<SogsRequest, 'user'>): Promise<SogsRequestUser | null> {
+export async function auth({ method, endpoint, headers, body }: {
+  method: string,
+  endpoint: string,
+  headers?: Record<string, string>,
+  body: string | null
+}): Promise<SogsRequestUser | null> {
   try {
     const headersParsing = await z.object({
       'X-SOGS-Pubkey': z.string().length(66).regex(/^(00|15)[0-9a-f]+$/),
@@ -14,7 +18,7 @@ export async function auth(req: Omit<SogsRequest, 'user'>): Promise<SogsRequestU
       'X-SOGS-Nonce': z.string().length(22).base64().or(z.string().length(24).base64()
         .or(z.string().length(32).regex(/^[0-9a-f]+$/))),
       'X-SOGS-Signature': z.string().length(88).base64()
-    }).safeParseAsync(req.headers)
+    }).safeParseAsync(headers)
     if (!headersParsing.success) {
       return null
     }
@@ -22,12 +26,12 @@ export async function auth(req: Omit<SogsRequest, 'user'>): Promise<SogsRequestU
     const pubkey = getServerKey().publicKey
     const nonce = Buffer.from(headersParsing.data['X-SOGS-Nonce'], 'base64')
     const timestamp = Buffer.from(String(headersParsing.data['X-SOGS-Timestamp']))
-    const method = Buffer.from(req.method)
-    const path = Buffer.from(decodeURI(req.endpoint), 'utf-8')
-    let computedSignature = Buffer.concat([pubkey, nonce, timestamp, method, path])
+    const methodBuf = Buffer.from(method)
+    const path = Buffer.from(decodeURI(endpoint), 'utf-8')
+    let computedSignature = Buffer.concat([pubkey, nonce, timestamp, methodBuf, path])
 
-    if(req.body) {
-      computedSignature = Buffer.concat([computedSignature, hashBody(req.body)])
+    if(body) {
+      computedSignature = Buffer.concat([computedSignature, hashBody(body)])
     }
 
     const publicKeyRaw = Buffer.from(headersParsing.data['X-SOGS-Pubkey'], 'hex').subarray(1)

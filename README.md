@@ -6,13 +6,14 @@ Aims to be very fast, flexible and extensible. Drop-in replacement for pysogs �
 
 ## Core features and comparison table
 
-| Feature                                   | pysogs (official) | bunsogs |
-| ----------------------------------------- | ----------------- | ------- |
-| Plugins (antispam, filters, DM greetings) | ❌                | ✅      |
-| Bot API                                   | ❌                | ✅      |
-| Auto deleting old messages                | ❌                | ✅      |
-| CLI                                       | ✅                | ✅      |
-|                                           |                   |         |
+| Feature                                   | pysogs (official) | bunsogs                            |
+| ----------------------------------------- | ----------------- | ---------------------------------- |
+| Plugins (antispam, filters, DM greetings) | ❌                | ✅                                 |
+| Per-room rate limit settings              | ❌                | ✅                                 |
+| Bot API                                   | ❌                | ✅                                 |
+| Auto deleting old messages                | ❌                | ✅                                 |
+| CLI                                       | ✅                | ✅ (works only when server is off) |
+|                                           |                   |                                    |
 
 And it can be installed anywhere, not just Ubuntu 22
 

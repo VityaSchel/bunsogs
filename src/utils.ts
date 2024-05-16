@@ -9,3 +9,8 @@ export function addSessionMessagePadding(data: any, length: number): string {
 
   return buffer.toString('base64')
 }
+
+export function removeSessionMessagePadding(data: Buffer): Buffer {
+  const paddingIndex = data.indexOf(0x80)
+  return data.subarray(0, paddingIndex)
+}

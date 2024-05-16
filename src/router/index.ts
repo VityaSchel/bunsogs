@@ -4,13 +4,15 @@ import { getCapabilities } from '@/router/get-capabilities'
 import { getRoom } from '@/router/get-room'
 import { getRoomUpdates } from '@/router/get-room-updates'
 import { getRoomRecentMessages } from '@/router/get-room-recent-messages'
+import { getRoomMessagesSince } from '@/router/get-room-messages-since'
+import { postRoomMessage } from '@/router/post-room-message'
 
 export type SogsRequest = {
   endpoint: string
   method: string
-  body: string | null
+  body: any | null
   params?: { [key: string]: string | undefined }
-  headers?: { [key: string]: string | undefined }
+  headers?: { [key: string]: string }
   searchParams?: { [k: string]: string }
   user: SogsRequestUser | null
 }
@@ -28,11 +30,15 @@ const router = FindMyWay({
 
 router.on('GET', '/capabilities', getCapabilities)
 // @ts-expect-error fmw expects a handler with a specific signature
-router.on('GET', '/room/:id', getRoom)
+router.on('GET', '/room/:token', getRoom)
 // @ts-expect-error fmw expects a handler with a specific signature
-router.on('GET', '/room/:id/pollInfo/:info_updates', getRoomUpdates)
+router.on('GET', '/room/:token/pollInfo/:info_updates', getRoomUpdates)
 // @ts-expect-error fmw expects a handler with a specific signature
-router.on('GET', '/room/:id/messages/recent', getRoomRecentMessages)
+router.on('GET', '/room/:token/messages/recent', getRoomRecentMessages)
+// @ts-expect-error fmw expects a handler with a specific signature
+router.on('GET', '/room/:token/messages/since/:since_seqno', getRoomMessagesSince)
+// @ts-expect-error fmw expects a handler with a specific signature
+router.on('POST', '/room/:token/message', postRoomMessage)
 
 export async function handleIncomingRequest(req: SogsRequest): Promise<SogsResponse> {
   const supportedMethods = ['GET', 'POST', 'PUT', 'DELETE']
@@ -61,5 +67,7 @@ const routesMap: { [route: string]: (req: SogsRequest) => SogsResponse | Promise
   getCapabilities,
   getRoom,
   getRoomUpdates,
-  getRoomRecentMessages
+  getRoomRecentMessages,
+  getRoomMessagesSince,
+  postRoomMessage
 }

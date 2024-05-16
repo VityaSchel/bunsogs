@@ -10,6 +10,7 @@ import bencode from 'bencode'
 import SJSON from 'secure-json-parse'
 import { z } from 'zod'
 import chalk from 'chalk'
+import { nonceUsed } from '@/nonce'
 
 console.log()
 
@@ -39,6 +40,7 @@ const handleOnionConnection = async (request: Request) => {
   const { payload: payloadBencoded, encType, remotePk } = parseBody(body)
   const payloadsSerialized = bencode.decode(payloadBencoded, 'utf-8') as string[]
   const payloadsDeserialized = payloadsSerialized.map(p => SJSON.parse(p))
+  // console.log('request', payloadsDeserialized) // TODO: remove
 
   const targetPayloadDeserialized = payloadsDeserialized[0]
   const isBatchRequest = typeof targetPayloadDeserialized === 'object' &&
@@ -46,17 +48,30 @@ const handleOnionConnection = async (request: Request) => {
     targetPayloadDeserialized.endpoint === '/batch'
   let responseBody: any, status: number, contentType: string | undefined
   if (isBatchRequest) {
+    if ('headers' in payloadsDeserialized[0] && 'X-SOGS-Nonce' in payloadsDeserialized[0].headers && nonceUsed(payloadsDeserialized[0].headers['X-SOGS-Nonce'])) {
+      return new Response(null, { status: 400 })
+    }
     status = 200
     responseBody = await handleBatchOnionRequest(payloadsDeserialized)
     contentType = 'application/json'
   } else {
+    const headers = payloadsDeserialized[0].headers
+    if ('X-SOGS-Nonce' in headers && nonceUsed(headers['X-SOGS-Nonce'])) {
+      return new Response(null, { status: 400 })
+    }
     const sogsRequest: Omit<SogsRequest, 'user'> = {
       ...targetPayloadDeserialized,
-      headers: Object.fromEntries(request.headers.entries())
+      body: payloadsDeserialized[1] || null,
+      headers
     }
     const response = await handleOnionRequest(
       sogsRequest,
-      await auth(sogsRequest)
+      await auth({
+        endpoint: sogsRequest.endpoint,
+        method: sogsRequest.method,
+        headers: sogsRequest.headers,
+        body: JSON.stringify(sogsRequest.body)
+      })
     )
     if (response.body === null) {
       return new Response(null, { status: response.status })
@@ -71,7 +86,7 @@ const handleOnionConnection = async (request: Request) => {
     }
   }
 
-  // console.log('responded with', responseBody) TODO: remove
+  console.log('responded with', responseBody) // TODO: remove
 
   const responseData = Buffer.from(responseBody)
   const responseMeta = Buffer.from(JSON.stringify({ 'code': status, 'headers': { 'content-type': contentType } }))
@@ -96,7 +111,8 @@ const handleBatchOnionRequest = async (payloadsDeserialized: any[]) => {
         {
           endpoint: path,
           ...inc,
-          headers
+          headers,
+          body: payloadsDeserialized[1]
         },
         await auth({
           endpoint: '/batch',
@@ -121,6 +137,7 @@ const handleOnionRequest = async (payloadDeserialized: Omit<SogsRequest, 'user'>
     endpoint: z.string(),
     method: z.string(),
     headers: z.record(z.string(), z.string()).optional(),
+    body: z.any().optional()
   }).safeParseAsync(payloadDeserialized)
 
   if (!payload.success) {
@@ -130,7 +147,7 @@ const handleOnionRequest = async (payloadDeserialized: Omit<SogsRequest, 'user'>
   const { status, response, contentType } = await handleIncomingRequest({
     endpoint: payload.data.endpoint,
     method: payload.data.method,
-    body: null,
+    body: payload.data.body || null,
     headers: payload.data.headers,
     user
   })
@@ -150,17 +167,29 @@ const handleClearnetRequest = async (request: Request) => {
 
   const endpoint = new URL(request.url).pathname
   const headers = Object.fromEntries(request.headers.entries())
+  if ('X-SOGS-Nonce' in headers && nonceUsed(headers['X-SOGS-Nonce'])) {
+    return new Response(null, { status: 400 })
+  }
   const sogsRequest = {
     endpoint,
-    body,
+    body: body && SJSON.parse(body),
     method: request.method,
     headers
   }
 
-  const { response, status, contentType } = await handleIncomingRequest({
+  const { status, contentType, ...sogsResponse } = await handleIncomingRequest({
     ...sogsRequest,
-    user: await auth(sogsRequest)
+    user: await auth({
+      method: request.method,
+      endpoint,
+      headers,
+      body
+    })
   })
+  let response = sogsResponse.response
+  if (contentType === 'application/json') {
+    response = JSON.stringify(response)
+  }
 
   return new Response(response, {
     status,

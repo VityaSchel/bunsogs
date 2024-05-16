@@ -4,8 +4,8 @@ import { Room, getRooms, type UserPermissions } from '@/room'
 import type { SogsRequest, SogsResponse } from '@/router'
 
 export async function getRoom(req: SogsRequest): Promise<SogsResponse> {
-  const roomId = req.params?.['id']
-  if (!roomId) {
+  const roomToken = req.params?.['token']
+  if (!roomToken) {
     return {
       status: 404,
       response: null
@@ -13,7 +13,7 @@ export async function getRoom(req: SogsRequest): Promise<SogsResponse> {
   }
 
   const rooms = getRooms()
-  const room = rooms.get(roomId)
+  const room = rooms.get(roomToken)
   if (!room) {
     return {
       status: 404,
@@ -82,7 +82,7 @@ export async function getRoomDetails(room: Room, user: SogsRequestUser | null) {
     upload: userPermissions.banned ? false : userPermissions.upload,
     moderator: userIsModerator,
     admin: userIsAdmin,
-    global_moderator: userIsGlobalModerator,
-    global_admin: userIsGlobalAdmin
+    ...(userIsGlobalModerator && { global_moderator: true }),
+    ...(userIsGlobalAdmin && { global_admin: true }),
   }
 }

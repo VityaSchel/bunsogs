@@ -2,7 +2,7 @@
 import { Database } from 'bun:sqlite'
 import { dirname } from 'path'
 import { fileURLToPath } from 'url'
-import { migrate, getMigrations } from 'bun-sqlite-migrations'
+import { migrate, getMigrations, getDatabaseVersion } from 'bun-sqlite-migrations'
 import type { pinned_messagesEntity, room_moderatorsEntity, roomsEntity, usersEntity } from '@/schema'
 import { getServerKey } from '@/keypairs'
 
@@ -11,8 +11,10 @@ const __dirname = dirname(fileURLToPath(import.meta.url)) + '/'
 export const db = new Database(__dirname + '../db.sqlite3', { create: true })
 const newDatabase = await db.query('SELECT name FROM sqlite_master WHERE type="table"').all().length === 0
 
-const migrations = getMigrations(__dirname + '../migrations')
-if (!newDatabase) migrations.splice(0, 1)
+const migrations = getMigrations(__dirname + '../migrations/updates')
+if (newDatabase) {
+  migrations.unshift(getMigrations(__dirname + '../migrations/init')[0])
+}
 migrate(db, migrations)
 
 const getUserQuery = await db.query<usersEntity, { $id: number }>('SELECT session_id FROM users WHERE id = :id')

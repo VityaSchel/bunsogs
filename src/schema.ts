@@ -137,6 +137,8 @@ export interface roomsEntity {
   'token': string;
   'upload': boolean;
   'write': boolean;
+  'rate_limit_size': number | undefined;
+  'rate_limit_interval': number | undefined;
 }
 export interface user_ban_futuresEntity {
   'at': number;
