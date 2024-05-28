@@ -82,12 +82,11 @@ const roomsMenu = async () => {
   switch (value) {
     case 'addRoom':
       await addRoomMenu()
-      break
+      return await roomsMenu()
     case 'back':
       return
     case 'disabled':
-      await roomsMenu()
-      break
+      return await roomsMenu()
     default: {
       if (value) {
         const room = await getRoomByToken(value)
@@ -270,16 +269,64 @@ const editRoomDescriptionMenu = async (room: roomsEntity) => {
   return
 }
 
+const deleteRoomMenu = async (room: roomsEntity) => {
+  console.log('\x1b[33mDeleting room includes deleting all messages, files and other content in it.')
+  console.log('\x1b[33mIt is permanent and dangerous. If you want to proceed, type room\'s token below')
+  const response = await prompts({
+    type: 'text',
+    name: 'value',
+    message: `Rooms ❯ ${room.name} (@${room.token}) ❯ Delete room`,
+  })
+  clearLines(3)
+  const ctrlCPressed = typeof response.value !== 'string'
+  if (!ctrlCPressed && response.value === room.token) {
+    try {
+      await db.transaction(token => {
+        db.prepare<null, { $token: string }>(`
+          DELETE FROM user_reactions WHERE reaction IN (
+            SELECT id FROM reactions WHERE message IN (
+              SELECT id FROM messages WHERE room = (
+                SELECT id FROM rooms WHERE token = $token)))
+        `).run({ $token: token })
+        db.prepare<null, { $token: string }>('DELETE FROM rooms WHERE token = $token')
+          .run({ $token: token })
+      })(room.token)
+      await showSuccess('Room deleted')
+    } catch(e) {
+      await showError(e)
+    }
+  }
+  return
+}
+
 const roomMenu = async (room: roomsEntity) => {
   const value = await drawRoomMenu(room)
   switch (value) {
     case 'name':
-      return await editRoomNameMenu(room)
+      await editRoomNameMenu(room)
+      return await roomMenu(room)
     case 'description':
-      return await editRoomDescriptionMenu(room)
+      await editRoomDescriptionMenu(room)
+      return await roomMenu(room)
     case 'avatar':
-
-      break
+      // TODO
+      await showError('This section of CLI is still under development')
+      return await roomMenu(room)
+    case 'mods':
+      // TODO
+      await showError('This section of CLI is still under development')
+      return await roomMenu(room)
+    case 'bans':
+      // TODO
+      await showError('This section of CLI is still under development')
+      return await roomMenu(room)
+    case 'permissions':
+      // TODO
+      await showError('This section of CLI is still under development')
+      return await roomMenu(room)
+    case 'delete':
+      await deleteRoomMenu(room)
+      return await roomMenu(room)
     case 'back':
       return
     default:
@@ -295,7 +342,8 @@ const drawGlobalSettingsMenu = async () => {
     choices: [
       { title: 'Global admins', description: 'Manage global admins', value: 'globalAdmins' },
       { title: 'Global moderators', description: 'Manage global moderators', value: 'globalModerators' },
-      { title: 'Override global permissions', description: 'Set global override for specific Session ID', value: 'overrides' },
+      { title: 'Global bans/unbans', description: 'Ban Session ID(s) in all rooms', value: 'bans' },
+      { title: 'Global permissions', description: 'Set global permissions overrides for specific Session ID(s)', value: 'overrides' },
       { title: 'Back', description: 'Back to main menu', value: 'back' }
     ]
   })
@@ -304,19 +352,24 @@ const drawGlobalSettingsMenu = async () => {
 }
 
 const globalSettingsMenu = async () => {
-  switch (await drawGlobalSettingsMenu()) {
+  const value = await drawGlobalSettingsMenu()
+  switch (value) {
     case 'globalAdmins':
-      // await globalAdminsMenu()
-      // break
-      return
+      // TODO
+      await showError('This section of CLI is still under development')
+      return await globalSettingsMenu()
     case 'globalModerators':
-      // await globalModeratorsMenu()
-      // break
-      return
+      // TODO
+      await showError('This section of CLI is still under development')
+      return await globalSettingsMenu()
+    case 'bans':
+      // TODO
+      await showError('This section of CLI is still under development')
+      return await globalSettingsMenu()
     case 'overrides':
-      // await globalOverridesMenu()
-      // break
-      return
+      // TODO
+      await showError('This section of CLI is still under development')
+      return await globalSettingsMenu()
     case 'back':
       return
     default:
