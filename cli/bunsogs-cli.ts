@@ -56,11 +56,11 @@ const argv = Yargs(hideBin(process.argv))
   })
   .option('visible', {
     type: 'boolean',
-    description: 'Make an added moderator/admins\' status publicly visible.This is the default for room mods, but not for global mods'
+    description: 'Make an added moderator/admins\' status publicly visible. This is the default for room mods, but not for global mods'
   })
   .option('hidden', {
     type: 'boolean',
-    description: 'Hide the added moderator/admins\' status from public users.This is the default for global mods, but not for roommods'
+    description: 'Hide the added moderator/admins\' status from public users. This is the default for global mods, but not for roommods'
   })
   .option('list-rooms', {
     alias: 'L',

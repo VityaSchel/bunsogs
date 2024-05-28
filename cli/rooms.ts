@@ -9,6 +9,12 @@ export async function getRooms() {
   return rows
 }
 
+export async function getRoomByToken(token: string) {
+  const room = await db.query<roomsEntity, { $token: string }>('SELECT * FROM rooms WHERE token = $token')
+    .get({ $token: token })
+  return room
+}
+
 export async function createRoom({ token, name, description }: CreateRoomInput): Promise<number> {
   try {
     const row = await db.query<{ id: number }, { $token: string, $name: string, $description: string }>('INSERT INTO rooms(token, name, description) VALUES($token, $name, $description) RETURNING id')
