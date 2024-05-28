@@ -1,8 +1,8 @@
 import { getConfig } from '@/config'
 import { db, getPinnedMessagesFromDb, getRoomAdminsAndModsFromDb, getRoomsFromDb } from '@/db'
 import { BadPermission, PostRateLimited } from '@/errors'
-import { isUserGlobalAdmin, isUserGlobalModerator } from '@/global-settings'
 import type { message_detailsEntity, user_permissionsEntity } from '@/schema'
+import { User } from '@/user'
 import * as Utils from '@/utils'
 
 type PinnedMessage = {
@@ -57,14 +57,14 @@ export class Room {
   created: number
   /** Array of pinned message information */
   pinnedMessages: PinnedMessage[]
-  /** Array of Session IDs of the room's publicly viewable moderators. This does not include room administrators nor hidden moderators. */
-  moderators: string[]
-  /** Array of Session IDs of the room's publicly viewable administrators. This does not include room moderators nor hidden admins. */
-  admins: string[]
-  /** Array of Session IDs of the room's publicly hidden moderators. */
-  hiddenModerators: string[]
-  /** Array of Session IDs of the room's publicly hidden administrators. */
-  hiddenAdmins: string[]
+  /** Room's publicly viewable moderators. This does not include room administrators nor hidden moderators. */
+  moderators: Set<User>
+  /** Room's publicly viewable administrators. This does not include room moderators nor hidden admins. */
+  admins: Set<User>
+  /** Room's publicly hidden moderators. */
+  hiddenModerators: Set<User>
+  /** Room's publicly hidden administrators. */
+  hiddenAdmins: Set<User>
   /** Indicates whether new users have read permission in the room. */
   defaultRead: boolean
   /** Indicates whether new users have access permission in the room. */
@@ -115,31 +115,44 @@ export class Room {
     this.messageSequence = messageSequence
     this.created = created
     this.pinnedMessages = pinnedMessages
-    this.moderators = moderators
-    this.admins = admins
+    const moderatorsUsers = moderators.map(x => new User(x.startsWith('15') ? { blindedID: x } : { sessionID: x }))
+    this.moderators = new Set(moderatorsUsers)
+    const adminsUsers = admins.map(x => new User(x.startsWith('15') ? { blindedID: x } : { sessionID: x }))
+    this.admins = new Set(adminsUsers)
     this.defaultRead = defaultRead
     this.defaultAccessible = defaultAccessible
     this.defaultWrite = defaultWrite
     this.defaultUpload = defaultUpload
     this.imageId = imageId
-    this.hiddenModerators = hiddenModerators
-    this.hiddenAdmins = hiddenAdmins
+    const hiddenModeratorsUsers = hiddenModerators.map(x => new User(x.startsWith('15') ? { blindedID: x } : { sessionID: x }))
+    this.hiddenModerators = new Set(hiddenModeratorsUsers)
+    const hiddenAdminsUsers = hiddenAdmins.map(x => new User(x.startsWith('15') ? { blindedID: x } : { sessionID: x }))
+    this.hiddenAdmins = new Set(hiddenAdminsUsers)
     this.rateLimitSettings = rateLimitSettings
   }
 
-  _permissionsCache: Map<string, UserPermissions> = new Map()
-  async getUserPermissions(userId: string): Promise<UserPermissions> {
-    const permissionsCached = this._permissionsCache.get(userId)
+  async refresh() {
+    await Promise.all([
+      ...Array.from(this.admins.values()).map(admin => admin.refresh()),
+      ...Array.from(this.moderators.values()).map(moderator => moderator.refresh()),
+      ...Array.from(this.hiddenAdmins.values()).map(admin => admin.refresh()),
+      ...Array.from(this.hiddenModerators.values()).map(moderator => moderator.refresh()),
+    ])
+  }
+
+  _permissionsCache: Map<number, UserPermissions> = new Map()
+  async getUserPermissions(user: User): Promise<UserPermissions> {
+    const permissionsCached = this._permissionsCache.get(user.id)
     if (permissionsCached !== undefined) {
       return permissionsCached
     }
 
     const roomId = this.id
-    const permissionsDb = db.query<user_permissionsEntity, { $roomId: number, $user: string }>(`
+    const permissionsDb = db.query<user_permissionsEntity, { $roomId: number, $user: number }>(`
       SELECT banned, read, accessible, write, upload, moderator, admin
       FROM user_permissions
       WHERE room = $roomId AND "user" = $user
-    `).get({ $roomId: roomId, $user: userId })
+    `).get({ $roomId: roomId, $user: user.id })
     const permissions = {
       banned: Boolean(permissionsDb?.banned),
       read: Boolean(permissionsDb?.read ?? this.defaultRead),
@@ -149,7 +162,7 @@ export class Room {
       moderator: Boolean(permissionsDb?.moderator),
       admin: Boolean(permissionsDb?.admin)
     }
-    this._permissionsCache.set(userId, permissions)
+    this._permissionsCache.set(user.id, permissions)
     return permissions
   }
 
@@ -170,7 +183,7 @@ export class Room {
    */
   async getReactions(
     messageIds: number[], 
-    user: string | null, 
+    user: User | null, 
     reactorLimit: number, 
     options?: { sessionIds?: true }
   ): Promise<Map<number, { [key: string]: any }>> {
@@ -216,7 +229,7 @@ export class Room {
    * padding *is* appended to the data field (i.e. this returns the full value, not the
    * padding-trimmed value actually stored in the database).
    */
-  async getMessages(user: string | null, options:
+  async getMessages(user: User | null, options:
     { sequence: number } | 
     { after: number } |
     { before: number } |
@@ -225,17 +238,17 @@ export class Room {
   { limit, reactorLimit, reactions }: { 
     limit: number, 
     reactorLimit: number,
-    reactions: boolean
+    reactions?: boolean
   }) {
     const mod = user === null 
       ? false
       : (
-        this.moderators.includes(user)
-        || this.admins.includes(user)
-        || this.hiddenModerators.includes(user)
-        || this.hiddenAdmins.includes(user)
-        || isUserGlobalAdmin(user)
-        || isUserGlobalModerator(user)
+        this.moderators.has(user)
+        || this.admins.has(user)
+        || this.hiddenModerators.has(user)
+        || this.hiddenAdmins.has(user)
+        || user.admin
+        || user.moderator
       )
 
     // We include deletions only if doing a sequence update request, but only include deletions
@@ -282,7 +295,7 @@ export class Room {
           ? ''
           : 'ORDER BY id ASC LIMIT $limit'
 
-    const rows = await db.query<message_detailsEntity, { $roomId: number, $sequence?: number, $after?: number, $before?: number, $single?: number, $user: string | null, $limit: number }>(
+    const rows = await db.query<message_detailsEntity, { $roomId: number, $sequence?: number, $after?: number, $before?: number, $single?: number, $user?: number, $limit: number }>(
       `SELECT * FROM message_details
       WHERE room = $roomId AND NOT filtered
       ${notDeletedClause}
@@ -295,7 +308,7 @@ export class Room {
       ...('after' in options && { $after: options.after }),
       ...('before' in options && { $before: options.before }),
       ...('single' in options && { $single: options.single }),
-      $user: user,
+      ...(user && { $user: user.id }),
       $limit: limit
     })
 
@@ -366,12 +379,12 @@ export class Room {
     return msgs
   }
 
-  async updateUserActivity(user: string) {
-    await db.query<never, { $user: string, $roomId: number, $now: number }>(`
+  async updateUserActivity(user: User) {
+    await db.query<never, { $user: number, $roomId: number, $now: number }>(`
       INSERT INTO room_users ("user", room) VALUES ($user, $roomId)
       ON CONFLICT("user", room) DO UPDATE
       SET last_active = $now
-    `).run({ $user: user, $roomId: this.id, $now: Math.floor(Date.now() / 1000) })
+    `).run({ $user: user.id, $roomId: this.id, $now: Math.floor(Date.now() / 1000) })
   }
 
   /**
@@ -384,10 +397,10 @@ export class Room {
    * Returns the message details.
    */
   async addPost(
-    user: string,
+    user: User,
     data: Buffer,
     signature: Buffer,
-    whisperTo?: string,
+    whisperTo?: User,
     whisperMods?: boolean,
     files?: number[]
   ) {
@@ -410,10 +423,10 @@ export class Room {
 
     if(this.rateLimitSettings.rateLimitSize > 0 && !permissions.admin) {
       const sinceLimit = Date.now() - this.rateLimitSettings.rateLimitInterval * 1000
-      const recentCount = db.prepare<{ 'COUNT(*)': number }, { $roomId: number, $user: string, $since: number }>(`
+      const recentCount = db.prepare<{ 'COUNT(*)': number }, { $roomId: number, $user: number, $since: number }>(`
         SELECT COUNT(*) FROM messages
         WHERE room = $roomId AND "user" = $user AND posted >= $since
-      `).get({ $roomId: this.id, $user: user, $since: sinceLimit })?.['COUNT(*)']
+      `).get({ $roomId: this.id, $user: user.id, $since: sinceLimit })?.['COUNT(*)']
 
       if (recentCount !== undefined && recentCount >= this.rateLimitSettings.rateLimitSize) {
         throw new PostRateLimited()
@@ -423,7 +436,7 @@ export class Room {
     const dataSize = data.length
     const unpaddedData = Utils.removeSessionMessagePadding(data)
 
-    const msgInsert = db.prepare<{ id: number }, { $roomId: number, $user: string, $data: Buffer, $dataSize: number, $signature: Buffer, $filtered: boolean, $whisper: string | null, $whisperMods: boolean | 0 }>(`
+    const msgInsert = db.prepare<{ id: number }, { $roomId: number, $user: number, $data: Buffer, $dataSize: number, $signature: Buffer, $filtered: boolean, $whisper: number | null, $whisperMods: boolean | 0 }>(`
       INSERT INTO messages
         (room, "user", data, data_size, signature, filtered, whisper, whisper_mods)
         VALUES
@@ -431,12 +444,12 @@ export class Room {
       RETURNING id
     `).get({
       $roomId: this.id,
-      $user: user,
+      $user: user.id,
       $data: unpaddedData,
       $dataSize: dataSize,
       $signature: signature,
       $filtered: filtered,
-      $whisper: whisperTo ?? null,
+      $whisper: whisperTo ? whisperTo.id : null,
       $whisperMods: whisperMods || 0
     })
 
@@ -497,11 +510,11 @@ export async function loadRooms() {
       hiddenAdmins,
       hiddenModerators 
     } = await getRoomAdminsAndModsFromDb(roomDb.id)
-    rooms.set(roomDb.token, new Room(
+    const room = new Room(
       roomDb.id,
       roomDb.token,
       roomDb.active_users ?? 0,
-      config.active_threshold*24*60*60,
+      config.active_threshold * 24 * 60 * 60,
       roomDb.name,
       roomDb.description,
       roomDb.info_updates ?? 0,
@@ -521,7 +534,9 @@ export async function loadRooms() {
         rateLimitSize: roomDb.rate_limit_size ?? 5,
         rateLimitInterval: roomDb.rate_limit_interval ?? 16.0
       }
-    ))
+    )
+    await room.refresh()
+    rooms.set(roomDb.token, room)
   }
 
   return rooms

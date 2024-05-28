@@ -6,14 +6,16 @@ Aims to be very fast, flexible and extensible. Drop-in replacement for pysogs �
 
 ## Core features and comparison table
 
-| Feature                                   | pysogs (official) | bunsogs                            |
-| ----------------------------------------- | ----------------- | ---------------------------------- |
-| Plugins (antispam, filters, DM greetings) | ❌                | ✅                                 |
-| Per-room rate limit settings              | ❌                | ✅                                 |
-| Bot API                                   | ❌                | ✅                                 |
-| Auto deleting old messages                | ❌                | ✅                                 |
-| CLI                                       | ✅                | ✅ (works only when server is off) |
-|                                           |                   |                                    |
+| Feature                                   | pysogs (official) | bunsogs |
+| ----------------------------------------- | ----------------- | ------- |
+| Plugins (antispam, filters, DM greetings) | ❌                | ✅      |
+| Per-room rate limit settings              | ❌                | ✅      |
+| Bot API                                   | ❌                | ✅      |
+| Auto deleting old messages                | ❌                | ✅      |
+| CLI                                       | ✅                | ✅*     |
+|                                           |                   |         |
+
+\* — bunsogs-cli is only available when bunsogs is not running. It has the same syntax as official sogs cli.
 
 And it can be installed anywhere, not just Ubuntu 22
 
@@ -85,6 +87,99 @@ In progress
 4. Copy key_x25519 file from pysogs directory to bunsogs
 5. Run bunsogs
 
+## CLI
+
+To add or manage rooms, rooms admins and moderators and global server admins and moderators, use bunsogs-cli.
+
+You can utilize command line interface to manage your bunsogs in two ways:
+
+1. Interactive, human-friendly, **recommended** (i.e. `bunsogs`)
+  - Simply start it with no options, you will be presented with a simple interface that you can navigate using keyboard arrows 
+2. With arguments, for automatization (e.g. `bunsogs --add-room fishing --name "Fish talk"`)
+  - You can pass options to CLI to automate things, because it will simply run the process, output result and exit, with no tty
+
+You must always be in the bunsogs directory, to start CLI.
+
+To start CLI you can pick one of two options:
+- Start right away
+   - If you want to simply use CLI without installing anything additionally, use `bun bunsogs-cli` command
+   - For example, `bun bunsogs-cli --help` or `bun bunsogs-cli --add-room sudoku --name "Sudoku solvers"`
+   - From now on, this documentation will use `bunsogs-cli` command, but if you use this approach, simply prepend `bun ` to each command
+- OR Add to your $PATH
+   - This approach makes even shorter `bunsogs-cli` command available to your system, so that you can run `bunsogs-cli --help`
+   - For most OS (mac/linux) to install bunsogs-cli, use 
+   1. `echo "export PATH=\$PATH:$(pwd)/cli" >> ${HOME}/.$(basename $SHELL)rc`
+   2. `source ${HOME}/.$(basename $SHELL)rc`
+   - After that, try to use `bunsogs-cli` in your terminal!
+
+## CLI Options
+
+**Note: you may find it easier to use brand new interactive mode (run bunsogs-cli without arguments), instead of supplying options as args**
+
+You can get detailed documentation of cli by running `bunsogs-cli --help`
+
+```
+Options:
+      --help                                         Show help
+      --version                                      Show version number
+      --add-room TOKEN                               Add a room with the given token
+      --name NAME                                    Set the room's initial name for --add - room; if omitted use the
+                                                     token name
+      --description DESCRIPTION                      Sets or updates a room's description (with --add-room or --rooms)
+      --delete-room TOKEN                            Delete the room with the given token
+      --add-moderators SESSIONID [SESSIONID ...]     Add the given Session ID(s) as a moderator of the room given by
+                                                     --rooms
+      --delete-moderators SESSIONID [SESSIONID ...]  Delete the the given Session ID(s) as moderator and admins of the
+                                                     room given by --rooms
+      --users SESSIONID [SESSIONID ...]              One or more specific users to set permissions for with --add-perms,
+                                                     --remove-perms, --clear-perms. If omitted then the room default
+                                                     permissions will be set for the given room(s) instead.
+      --add-perms ADD_PERMS                          With --add-room or --rooms, set these permissions to true; takes a
+                                                     string of 1-4 of the letters "rwua" for [r]ead, [w]rite, [u]pload,
+                                                     and [a]ccess.
+      --remove-perms REMOVE_PERMS                    With --add-room or --rooms, set these permissions to false; takes
+                                                     the same string as --add-perms, but denies the listed permissions
+                                                     rather than granting them.
+      --clear-perms CLEAR_PERMS                      With --add-room or --rooms, clear room or user overrides on these
+                                                     permissions, returning them to the default setting. Takes the same
+                                                     argument as --add-perms.
+      --admin                                        Add the given moderators as admins rather than ordinary moderators
+      --rooms TOKEN [TOKEN ...]                      Room(s) to use when adding/removing moderators/admins or when
+                                                     setting permissions. If a single room name of  is given then the
+                                                     user will be added/removed as a global admin/moderator. '+' is not
+                                                     valid for setting permissions. If a single room name of '*' is
+                                                     given then the changes take effect on each of the server's current
+                                                     rooms.
+      --visible                                      Make an added moderator/admins' status publicly visible.This is the
+                                                     default for room mods, but not for global mods
+      --hidden                                       Hide the added moderator/admins' status from public users.This is
+                                                     the default for global mods, but not for roommods
+  -L, --list-rooms                                   List current rooms and basic stats
+  -M, --list-global-mods                             List global moderators/admins
+
+Examples:
+  bunsogs-cli --add-room bun --name "Bun.sh lovers"             Add new room "bun"
+  bunsogs-cli --rooms bun fish --admin --add-moderators 050123  Add 2 admins to each of rooms "xyz" and "abc"
+  456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+  0500112233445566778899aabbccddeeff00112233445566778899aabbcc
+  ddeeff
+  bunsogs-cli --add-moderators 050123456789abcdef0123456789abc  Add a global moderator visible as a moderator of all
+  def0123456789abcdef0123456789abcdef --rooms=+ --visible       rooms
+  bunsogs-cli --add-perms rw --remove-perms u --rooms="*"       Set default read/write True and upload False on all
+                                                                rooms
+  bunsogs-cli --clear-perms rwua --rooms="*" --users 050123456  Remove overrides for user 0501234... on all rooms
+  789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+
+A database will be loaded from current directory, if one exists. You can override this by specifying a path to the
+db.sqlite3 to load in BUNSOGS_DB environment variable.
+```
+
 ## Where is data stored?
 
 Everything is stored inside db.sqlite3 and uploads directory. Periodically copy it in some safe place. Key is stored in key_x25519 file, backup it once.
+
+## Credits
+
+Huge thanks to li0ard for code that is responsible for [blinding Session IDs](https://github.com/theinfinityway/session_id/)
+
+Thanks to official pysogs implementation developers for detailed API

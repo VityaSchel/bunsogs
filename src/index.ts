@@ -4,20 +4,19 @@ import { loadRooms } from '@/room'
 import { parseBody } from '@/parser'
 import { encryptChannelEncryption } from '@/crypto'
 import { handleIncomingRequest, type SogsRequest } from '@/router'
-import { auth, type SogsRequestUser } from '@/middlewares/auth'
-import { loadGlobalSettings } from '@/global-settings'
+import { auth } from '@/middlewares/auth'
 import bencode from 'bencode'
 import SJSON from 'secure-json-parse'
 import { z } from 'zod'
 import chalk from 'chalk'
 import { nonceUsed } from '@/nonce'
+import type { User } from '@/user'
 
 console.log()
 
 const keys = await loadServerKey()
 const config = await loadConfig()
 const rooms = await loadRooms()
-await loadGlobalSettings()
 
 const port = process.env.PORT || config.port || 3000
 const hostname = process.env.HOSTNAME || config.hostname
@@ -64,14 +63,18 @@ const handleOnionConnection = async (request: Request) => {
       body: payloadsDeserialized[1] || null,
       headers
     }
+    const authResult = await auth({
+      endpoint: sogsRequest.endpoint,
+      method: sogsRequest.method,
+      headers: sogsRequest.headers,
+      body: JSON.stringify(sogsRequest.body)
+    })
+    if (authResult === 403) {
+      return new Response(null, { status: 403 })
+    }
     const response = await handleOnionRequest(
       sogsRequest,
-      await auth({
-        endpoint: sogsRequest.endpoint,
-        method: sogsRequest.method,
-        headers: sogsRequest.headers,
-        body: JSON.stringify(sogsRequest.body)
-      })
+      authResult
     )
     if (response.body === null) {
       return new Response(null, { status: response.status })
@@ -106,6 +109,15 @@ const handleBatchOnionRequest = async (payloadsDeserialized: any[]) => {
   const payload = payloadsDeserialized[1] as Array<any>
   const responses = await Promise.all(payload.map(async (tpd: any) => {
     try {
+      const authResult = await auth({
+        endpoint: '/batch',
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify(payloadsDeserialized[1])
+      })
+      if (authResult === 403) {
+        return { code: 403, body: null }
+      }
       const { path, ...inc } = tpd
       const { status, body, contentType } = await handleOnionRequest(
         {
@@ -114,12 +126,7 @@ const handleBatchOnionRequest = async (payloadsDeserialized: any[]) => {
           headers,
           body: payloadsDeserialized[1]
         },
-        await auth({
-          endpoint: '/batch',
-          method: 'POST',
-          headers: headers,
-          body: JSON.stringify(payloadsDeserialized[1])
-        })
+        authResult
       )
       return { code: status, body, headers: { 'content-type': contentType } }
     } catch(e) {
@@ -132,7 +139,7 @@ const handleBatchOnionRequest = async (payloadsDeserialized: any[]) => {
   return JSON.stringify(responses)
 }
 
-const handleOnionRequest = async (payloadDeserialized: Omit<SogsRequest, 'user'>, user: SogsRequestUser | null) => {
+const handleOnionRequest = async (payloadDeserialized: Omit<SogsRequest, 'user'>, user: User | null) => {
   const payload = await z.object({
     endpoint: z.string(),
     method: z.string(),
@@ -176,15 +183,18 @@ const handleClearnetRequest = async (request: Request) => {
     method: request.method,
     headers
   }
-
+  const authResult = await auth({
+    method: request.method,
+    endpoint,
+    headers,
+    body
+  })
+  if (authResult === 403) {
+    return new Response(null, { status: 403 })
+  }
   const { status, contentType, ...sogsResponse } = await handleIncomingRequest({
     ...sogsRequest,
-    user: await auth({
-      method: request.method,
-      endpoint,
-      headers,
-      body
-    })
+    user: authResult
   })
   let response = sogsResponse.response
   if (contentType === 'application/json') {

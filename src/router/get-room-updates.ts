@@ -1,4 +1,3 @@
-import { isUserGlobalAdmin, isUserGlobalModerator } from '@/global-settings'
 import { getRooms, type UserPermissions } from '@/room'
 import type { SogsRequest, SogsResponse } from '@/router'
 import { getRoomDetails } from '@/router/get-room'
@@ -29,10 +28,10 @@ export async function getRoomUpdates(req: SogsRequest): Promise<SogsResponse> {
   let userIsModerator = false
   let userIsAdmin = false
   if (user !== null) {
-    userIsGlobalAdmin = isUserGlobalAdmin(user)
-    userIsGlobalModerator = userIsGlobalAdmin || isUserGlobalModerator(user)
-    userIsModerator = userIsGlobalModerator || room.moderators.includes(user)
-    userIsAdmin = userIsModerator || room.admins.includes(user)
+    userIsGlobalAdmin = user.admin
+    userIsGlobalModerator = userIsGlobalAdmin || user.moderator
+    userIsModerator = userIsGlobalModerator || room.moderators.has(user)
+    userIsAdmin = userIsModerator || room.admins.has(user)
   }
 
   let userPermissions: Pick<UserPermissions, 'read' | 'write' | 'upload' | 'banned'>
