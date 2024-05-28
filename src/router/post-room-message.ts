@@ -32,7 +32,6 @@ export async function postRoomMessage(req: SogsRequest): Promise<SogsResponse> {
       response: null
     }
   }
-
   
   const rooms = getRooms()
   const room = rooms.get(roomToken)

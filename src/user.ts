@@ -30,17 +30,31 @@ export class User {
     }
   }
 
-  async refresh(): Promise<void> {
+  async refresh(options?: { autovivify?: boolean }): Promise<void> {
     let userDb: usersEntity
     if (this.id === -1) {
-      if(this.blindedID === '') {
-        throw new Error('User is not initialized')
+      let sessionID: string
+      if(this.sessionID) {
+        sessionID = this.sessionID
+      } else {
+        if(this.blindedID === '') {
+          throw new Error('User is not initialized')
+        }
+        sessionID = blindSessionID(this.sessionID)
       }
 
       const result = await db.query<usersEntity, { $sessionID: string }>('SELECT * FROM users WHERE session_id = $sessionID')
-        .get({ $sessionID: this.blindedID })
-      if (!result) throw new Error('User not found')
-      userDb = result
+        .get({ $sessionID: sessionID })
+      if (result) {
+        userDb = result
+      } else {
+        if (sessionID && options?.autovivify) {
+          userDb = await db.query<usersEntity, { $id: string }>('INSERT INTO users (session_id) VALUES ($id) RETURNING *')
+            .get({ $id: sessionID }) as usersEntity
+        } else {
+          throw new Error('User not found')
+        }
+      }
     } else {
       const result = await db.query<usersEntity, { $id: number }>('SELECT * FROM users WHERE id = $id')
         .get({ $id: this.id })
@@ -56,5 +70,6 @@ export class User {
     this.lastActive = userDb.last_active
     this.sessionID = userDb.session_id
     this.blindedID = blindSessionID(this.sessionID)
+    this.id = userDb.id
   }
 }

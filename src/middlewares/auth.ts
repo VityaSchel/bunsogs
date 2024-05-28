@@ -38,7 +38,13 @@ export async function auth({ method, endpoint, headers, body }: {
     }
 
     const user = new User({ sessionID })
-    await user.refresh()
+    try {
+      await user.refresh({ autovivify: true })
+    } catch(e) {
+      console.error(e)
+      throw e
+    }
+    console.log('user', user)
     if (user.banned) {
       return 403
     }
