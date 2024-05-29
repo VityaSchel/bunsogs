@@ -6,22 +6,20 @@ Aims to be very fast, flexible and extensible. Drop-in replacement for pysogs �
 
 ## Core features and comparison table
 
-| Feature                                   | pysogs (official) | bunsogs |
-| ----------------------------------------- | ----------------- | ------- |
-| Plugins (antispam, filters, DM greetings) | ❌                | ✅      |
-| Per-room rate limit settings              | ❌                | ✅      |
-| Bot API                                   | ❌                | ✅      |
-| Auto deleting old messages                | ❌                | ✅      |
-| CLI                                       | ✅                | ✅*     |
-|                                           |                   |         |
+| Feature                                    | pysogs (official) | bunsogs |
+| ------------------------------------------ | ----------------- | ------- |
+| Plugins (antispam, anticsam, DM greetings) | ❌                | ✅      |
+| Per-room rate limit settings               | ❌                | ✅      |
+| Bot API                                    | ❌                | ✅      |
+| GUI CLI                                    | ❌                | ✅      |
+| Auto deleting old messages                 | ❌                | ✅      |
+|                                            |                   |         |
 
-\* — bunsogs-cli is only available when bunsogs is not running. It has the same syntax as official sogs cli.
-
-And it can be installed anywhere, not just Ubuntu 22
+And it can be installed anywhere, not just Ubuntu 22 :)
 
 ## Prerequisites
 
-You will need a Linux server with a static IP address and a CPU modern enough to support [bun](https://bun.sh). It will probably work on Windows, but not tested.
+You will need a Linux server with a static IP address and a CPU modern enough to support [bun](https://bun.sh). You can use tunnels like [ngrok](https://ngrok.com/) to temporarily host your sogs without owning server or public ip.
 
 This implementation is not intended to be end server, but rather a local webserver. You will need to configure, for example, nginx proxy server, to handle requests and redirect them to this server.
 
@@ -89,32 +87,18 @@ In progress
 
 ## CLI
 
-To add or manage rooms, rooms admins and moderators and global server admins and moderators, use bunsogs-cli.
+To add or manage rooms, rooms admins and moderators and global server admins and moderators, use bunsogs-cli. You can utilize command line interface to manage your bunsogs in two ways:
 
-You can utilize command line interface to manage your bunsogs in two ways:
+1. Interactive, human-friendly, **recommended** (i.e. just type `bunsogs-cli` and hit enter)
+  - You will be presented with a graphic interface that you can navigate using keyboard arrows
+2. With arguments, for automation (e.g. `bunsogs-cli --add-room fishing --name "Fish talk"`)
+  - You can pass options to CLI to automate things, because it will simply run the process, output result and exit, you may skip any confirmation prompts with `-y` argument
 
-1. Interactive, human-friendly, **recommended** (i.e. `bunsogs`)
-  - Simply start it with no options, you will be presented with a simple interface that you can navigate using keyboard arrows 
-2. With arguments, for automatization (e.g. `bunsogs --add-room fishing --name "Fish talk"`)
-  - You can pass options to CLI to automate things, because it will simply run the process, output result and exit, with no tty
+In any case you should run CLI in the target bunsogs directory. But if you're advanced user, you can configure bunsogs to run from anywhere: add cli directory to your PATH variable (on most OSes, you should run `echo "export PATH=\$PATH:$(pwd)/cli" >> ${HOME}/.$(basename $SHELL)rc && source ${HOME}/.$(basename $SHELL)rc`), then each time you run `bunsogs-cli` command, pass `BUNSOGS_DB` environment variable with path to targeting bunsogs's db.sqlite3.
 
-You must always be in the bunsogs directory, to start CLI.
+### CLI Options
 
-To start CLI you can pick one of two options:
-- Start right away
-   - If you want to simply use CLI without installing anything additionally, use `bun bunsogs-cli` command
-   - For example, `bun bunsogs-cli --help` or `bun bunsogs-cli --add-room sudoku --name "Sudoku solvers"`
-   - From now on, this documentation will use `bunsogs-cli` command, but if you use this approach, simply prepend `bun ` to each command
-- OR Add to your $PATH
-   - This approach makes even shorter `bunsogs-cli` command available to your system, so that you can run `bunsogs-cli --help`
-   - For most OS (mac/linux) to install bunsogs-cli, use 
-   1. `echo "export PATH=\$PATH:$(pwd)/cli" >> ${HOME}/.$(basename $SHELL)rc`
-   2. `source ${HOME}/.$(basename $SHELL)rc`
-   - After that, try to use `bunsogs-cli` in your terminal!
-
-## CLI Options
-
-**Note: you may find it easier to use brand new interactive mode (run bunsogs-cli without arguments), instead of supplying options as args**
+**Note: you might find it easier to use brand new interactive mode (just run `bunsogs-cli` command without arguments), instead of supplying options as args**
 
 You can get detailed documentation of cli by running `bunsogs-cli --help`
 
@@ -173,6 +157,8 @@ Examples:
 A database will be loaded from current directory, if one exists. You can override this by specifying a path to the
 db.sqlite3 to load in BUNSOGS_DB environment variable.
 ```
+
+Note the difference between `+` and `*`: passing `+` to room means add global moderator which will moderate any rooms on server from now on, passing `*` will add moderator to each existing room sequentially.
 
 ## Where is data stored?
 

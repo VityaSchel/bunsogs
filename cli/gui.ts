@@ -1,6 +1,6 @@
 import prompts from 'prompts'
 import { CreateRoomInput } from './types'
-import { createRoom, getRoomByToken, getRooms } from './rooms'
+import { createRoom, deleteRoom, getRoomByToken, getRooms, setRoomDescription, setRoomName } from './rooms'
 import { roomsEntity } from '../src/schema'
 import assert from 'assert'
 import { db } from './db'
@@ -233,8 +233,7 @@ const editRoomNameMenu = async (room: roomsEntity) => {
   const ctrlCPressed = !response.value
   if (!ctrlCPressed && response.value !== room.name) {
     try {
-      await db.query<unknown, { $id: number, $name: string }>('UPDATE rooms SET name = $name WHERE id = $id')
-        .run({ $id: room.id, $name: response.value })
+      await setRoomName(room.id, response.value)
       await showSuccess('Room name changed to ' + response.value)
     } catch(e) {
       await showError(e)
@@ -259,8 +258,7 @@ const editRoomDescriptionMenu = async (room: roomsEntity) => {
   const ctrlCPressed = typeof response.value !== 'string'
   if (!ctrlCPressed && response.value !== String(room.description)) {
     try {
-      await db.query<unknown, { $id: number, $description: string }>('UPDATE rooms SET description = $description WHERE id = $id')
-        .run({ $id: room.id, $description: response.value || null })
+      await setRoomDescription(room.id, response.value)
       await showSuccess('Room description changed to ' + response.value)
     } catch(e) {
       await showError(e)
@@ -281,16 +279,7 @@ const deleteRoomMenu = async (room: roomsEntity) => {
   const ctrlCPressed = typeof response.value !== 'string'
   if (!ctrlCPressed && response.value === room.token) {
     try {
-      await db.transaction(token => {
-        db.prepare<null, { $token: string }>(`
-          DELETE FROM user_reactions WHERE reaction IN (
-            SELECT id FROM reactions WHERE message IN (
-              SELECT id FROM messages WHERE room = (
-                SELECT id FROM rooms WHERE token = $token)))
-        `).run({ $token: token })
-        db.prepare<null, { $token: string }>('DELETE FROM rooms WHERE token = $token')
-          .run({ $token: token })
-      })(room.token)
+      await deleteRoom(room.token)
       await showSuccess('Room deleted')
     } catch(e) {
       await showError(e)

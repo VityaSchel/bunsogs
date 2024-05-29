@@ -4,55 +4,66 @@ import Yargs from 'yargs/yargs'
 import { hideBin } from 'yargs/helpers'
 import packageJson from './package.json'
 import { mainMenu } from './gui'
+import { parseArgsCommand } from './args'
 
 const argv = Yargs(hideBin(process.argv))
   .option('add-room TOKEN', {
     type: 'string',
-    description: 'Add a room with the given token'
+    description: 'Add a room with the given token',
+    requiresArg: true,
   })
   .option('name NAME', {
     type: 'string',
-    description: 'Set the room\'s initial name for --add - room; if omitted use the token name'
+    description: 'Set the room\'s initial name for --add-room; if omitted use the token name',
+    requiresArg: true,
   })
   .option('description DESCRIPTION', {
     type: 'string',
-    description: 'Sets or updates a room\'s description (with --add-room or --rooms)'
+    description: 'Sets or updates a room\'s description (with --add-room or --rooms)',
   })
   .option('delete-room TOKEN', {
     type: 'string',
-    description: 'Delete the room with the given token'
+    description: 'Delete the room with the given token',
+    requiresArg: true,
   })
-  .option('add-moderators SESSIONID [SESSIONID ...]', {
+  .option('add-moderators', {
     type: 'array',
-    description: 'Add the given Session ID(s) as a moderator of the room given by --rooms'
+    description: 'Add the given Session ID(s) as a moderator of the room given by --rooms',
+    requiresArg: true,
   })
-  .option('delete-moderators SESSIONID [SESSIONID ...]', {
+  .option('delete-moderators', {
     type: 'array',
-    description: 'Delete the the given Session ID(s) as moderator and admins of the room given by --rooms'
+    description: 'Delete the the given Session ID(s) as moderator and admins of the room given by --rooms',
+    requiresArg: true,
   })
-  .option('users SESSIONID [SESSIONID ...]', {
+  .option('users', {
     type: 'array',
-    description: 'One or more specific users to set permissions for with --add-perms, --remove-perms, --clear-perms. If omitted then the room default permissions will be set for the given room(s) instead.'
+    description: 'One or more specific users to set permissions for with --add-perms, --remove-perms, --clear-perms. If omitted then the room default permissions will be set for the given room(s) instead.',
+    requiresArg: true,
   })
   .option('add-perms ADD_PERMS', {
-    type: 'array',
-    description: 'With --add-room or --rooms, set these permissions to true; takes a string of 1-4 of the letters "rwua" for [r]ead, [w]rite, [u]pload, and [a]ccess.'
+    type: 'string',
+    description: 'With --add-room or --rooms, set these permissions to true; takes a string of 1-4 of the letters "rwua" for [r]ead, [w]rite, [u]pload, and [a]ccess.',
+    requiresArg: true,
   })
   .option('remove-perms REMOVE_PERMS', {
-    type: 'array',
-    description: 'With --add-room or --rooms, set these permissions to false; takes the same string as --add-perms, but denies the listed permissions rather than granting them.'
+    type: 'string',
+    description: 'With --add-room or --rooms, set these permissions to false; takes the same string as --add-perms, but denies the listed permissions rather than granting them.',
+    requiresArg: true,
   })
   .option('clear-perms CLEAR_PERMS', {
-    type: 'array',
-    description: 'With --add-room or --rooms, clear room or user overrides on these permissions, returning them to the default setting. Takes the same argument as --add-perms.'
+    type: 'string',
+    description: 'With --add-room or --rooms, clear room or user overrides on these permissions, returning them to the default setting. Takes the same argument as --add-perms.',
+    requiresArg: true,
   })
   .option('admin', {
     type: 'boolean',
     description: 'Add the given moderators as admins rather than ordinary moderators'
   })
-  .option('rooms TOKEN [TOKEN ...]', {
+  .option('rooms', {
     type: 'array',
-    description: 'Room(s) to use when adding/removing moderators/admins or when setting permissions. If a single room name of '+' is given then the user will be added/removed as a global admin/moderator. \'+\' is not valid for setting permissions. If a single room name of \'*\' is given then the changes take effect on each of the server\'s current rooms.'
+    description: 'Room(s) to use when adding/removing moderators/admins or when setting permissions. If a single room name of \'+\' is given then the user will be added/removed as a global admin/moderator. \'+\' is not valid for setting permissions. If a single room name of \'*\' is given then the changes take effect on each of the server\'s current rooms.',
+    requiresArg: true,
   })
   .option('visible', {
     type: 'boolean',
@@ -71,6 +82,11 @@ const argv = Yargs(hideBin(process.argv))
     alias: 'M',
     type: 'boolean',
     description: 'List global moderators/admins'
+  })
+  .option('yes', {
+    alias: 'y',
+    type: 'boolean',
+    description: 'Answer "yes" to any confirmation prompts'
   })
   // @ts-expect-error types are not updated yet
   .usageConfiguration({
@@ -106,8 +122,6 @@ const isInteractiveMode = ![
   'listGlobalMods',
 ].some(arg => Object.hasOwn(argv, arg))
 
-
-
 if (isInteractiveMode) {
   console.log('')
   console.log('  Bunsogs CLI v' + packageJson.version)
@@ -116,4 +130,16 @@ if (isInteractiveMode) {
   await mainMenu()
   console.log('')
   process.exit(1)
+} else {
+  try {
+    await parseArgsCommand(argv)
+  } catch(e) {
+    if(e instanceof Error) {
+      console.error('Error: ' +e.message)
+      process.exit(1)
+    } else {
+      console.error('Unknown error')
+      process.exit(1)
+    }
+  }
 }

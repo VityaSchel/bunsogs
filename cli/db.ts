@@ -11,11 +11,16 @@ try {
   process.exit(1)
 }
 
-// try {
-//   await fs.access(dbPath)
-// } catch(e) {
-//   console.error('Couldn\'t open database at ' + dbPath)
-//   process.exit(1)
-// }
+try {
+  await fs.access(dbPath)
+} catch(e) {
+  try {
+    await fs.access(path.resolve('../db.sqlite3'))
+    dbPath = path.resolve('../db.sqlite3')
+  } catch (e) {
+    console.error('Couldn\'t open database at ' + dbPath)
+    process.exit(1)
+  }
+}
 
 export const db = new Database(dbPath, { create: false, readwrite: true })
