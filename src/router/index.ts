@@ -6,6 +6,7 @@ import { getRoomRecentMessages } from '@/router/get-room-recent-messages'
 import { getRoomMessagesSince } from '@/router/get-room-messages-since'
 import { postRoomMessage } from '@/router/post-room-message'
 import type { User } from '@/user'
+import { deleteRoomMessage } from '@/router/delete-room-message'
 
 export type SogsRequest = {
   endpoint: string
@@ -39,6 +40,8 @@ router.on('GET', '/room/:token/messages/recent', getRoomRecentMessages)
 router.on('GET', '/room/:token/messages/since/:since_seqno', getRoomMessagesSince)
 // @ts-expect-error fmw expects a handler with a specific signature
 router.on('POST', '/room/:token/message', postRoomMessage)
+// @ts-expect-error fmw expects a handler with a specific signature
+router.on('DELETE', '/room/:token/message/:message_id', deleteRoomMessage)
 
 export async function handleIncomingRequest(req: SogsRequest): Promise<SogsResponse> {
   const supportedMethods = ['GET', 'POST', 'PUT', 'DELETE']
@@ -69,5 +72,6 @@ const routesMap: { [route: string]: (req: SogsRequest) => SogsResponse | Promise
   getRoomUpdates,
   getRoomRecentMessages,
   getRoomMessagesSince,
-  postRoomMessage
+  postRoomMessage,
+  deleteRoomMessage
 }

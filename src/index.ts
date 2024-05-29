@@ -89,7 +89,9 @@ const handleOnionConnection = async (request: Request) => {
     }
   }
 
-  console.log('responded with', responseBody) // TODO: remove
+  if (process.env.NODE_ENV === 'development') {
+    console.log('responded with', responseBody) // TODO: remove
+  }
 
   const responseData = Buffer.from(responseBody)
   const responseMeta = Buffer.from(JSON.stringify({ 'code': status, 'headers': { 'content-type': contentType } }))
@@ -130,7 +132,7 @@ const handleBatchOnionRequest = async (payloadsDeserialized: any[]) => {
       )
       return { code: status, body, headers: { 'content-type': contentType } }
     } catch(e) {
-      if(process.env.NODE_ENV !== 'production') {
+      if(process.env.NODE_ENV === 'development') {
         console.error(e)
       }
       return { body: null, status: 500 }

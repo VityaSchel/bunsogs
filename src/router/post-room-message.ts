@@ -1,6 +1,7 @@
 import { BadPermission, PostRateLimited } from '@/errors'
 import { getRooms } from '@/room'
 import type { SogsRequest, SogsResponse } from '@/router'
+import { User } from '@/user'
 import { z } from 'zod'
 
 export async function postRoomMessage(req: SogsRequest): Promise<SogsResponse> {
@@ -45,12 +46,20 @@ export async function postRoomMessage(req: SogsRequest): Promise<SogsResponse> {
   const data = Buffer.from(body.data.data, 'base64')
   const signature = Buffer.from(body.data.signature, 'base64')
 
+  const whisperTo = body.data.whisper_to 
+    ? new User({ sessionID: body.data.whisper_to })
+    : null
+
+  if (whisperTo !== null) {
+    await whisperTo.refresh({ autovivify: true })
+  }
+
   try {
     const message = await room.addPost(
       req.user,
       data,
       signature,
-      body.data.whisper_to,
+      whisperTo,
       body.data.whisper_mods,
       body.data.files
     )

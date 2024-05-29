@@ -1,7 +1,7 @@
 import { getConfig } from '@/config'
 import { db, getPinnedMessagesFromDb, getRoomAdminsAndModsFromDb, getRoomsFromDb } from '@/db'
 import { BadPermission, PostRateLimited } from '@/errors'
-import type { message_detailsEntity, user_permissionsEntity } from '@/schema'
+import type { message_detailsEntity, messagesEntity, user_permissionsEntity } from '@/schema'
 import { User } from '@/user'
 import * as Utils from '@/utils'
 
@@ -400,7 +400,7 @@ export class Room {
     user: User,
     data: Buffer,
     signature: Buffer,
-    whisperTo?: User,
+    whisperTo: User | null,
     whisperMods?: boolean,
     files?: number[]
   ) {
@@ -415,7 +415,7 @@ export class Room {
     }
 
     if(whisperTo === user) {
-      whisperTo = undefined
+      whisperTo = null
     }
 
     // TODO: filtering stuff (e.g. antispam)
@@ -493,6 +493,34 @@ export class Room {
     }
 
     return msg
+  }
+
+  /**
+   * Deletes the messages with the given ids. The given user performing the delete must be a
+   * moderator of the room.
+   * Returns the ids actually deleted (that is, already-deleted and non-existent ids are not
+   * returned).
+   * Throws BadPermission (without deleting anything) if attempting to delete any posts that the
+   * given user does not have permission to delete.
+   */
+  async deletePosts(
+    user: User,
+    ids: number[]
+  ) {
+    const permissions = await this.getUserPermissions(user)
+    const bindedIds = Utils.bindSqliteArray(ids)
+    if (!permissions.moderator) {
+      const foreignMessage = await db.query<messagesEntity, { $user: number }>(`
+        SELECT EXISTS(
+          SELECT * FROM messages WHERE "user" != $user AND id IN (${bindedIds.k})
+        )
+      `).get({ $user: user.id, ...bindedIds.v })
+      if (foreignMessage && Boolean(Object.values(foreignMessage)[0])) {
+        throw new BadPermission()
+      }
+    }
+    await db.query<null, Record<string, number>>(`DELETE FROM message_details WHERE id IN (${bindedIds.k})`)
+      .run(bindedIds.v)
   }
 }
 

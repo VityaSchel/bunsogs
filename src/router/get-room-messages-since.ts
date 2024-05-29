@@ -21,7 +21,8 @@ export async function getRoomMessagesSince(req: SogsRequest): Promise<SogsRespon
 
   const query = await z.object({
     limit: z.coerce.number().int().min(1).max(256).default(100),
-    flags: z.string().regex(/^[a-z]+$/).optional(),
+    t: z.string().regex(/^[a-z]+$/i).optional(),
+    r: z.string().optional(),
     reactors: z.coerce.number().int().min(0).max(20).default(4)
   }).safeParseAsync(req.searchParams)
   if (!query.success) {
@@ -41,8 +42,8 @@ export async function getRoomMessagesSince(req: SogsRequest): Promise<SogsRespon
   }
 
   const availableFlags = ['r']
-  const flags = query.data.flags 
-    ? Array.from(new Set(query.data.flags.split('')))
+  const eventTypes = query.data.t
+    ? Array.from(new Set(query.data.t.split('')))
       .filter(f => availableFlags.includes(f))
     : []
 
@@ -52,9 +53,9 @@ export async function getRoomMessagesSince(req: SogsRequest): Promise<SogsRespon
 
   const messages = await room.getMessages(
     req.user, 
-    { recent: true }, 
+    { sequence: sinceSequenceNumber }, 
     { 
-      reactions: flags.includes('r'),
+      reactions: eventTypes.includes('r'),
       reactorLimit: query.data.reactors, 
       limit: query.data.limit 
     }

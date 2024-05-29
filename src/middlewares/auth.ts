@@ -44,7 +44,6 @@ export async function auth({ method, endpoint, headers, body }: {
       console.error(e)
       throw e
     }
-    console.log('user', user)
     if (user.banned) {
       return 403
     }
