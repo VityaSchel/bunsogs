@@ -1,6 +1,6 @@
 import prompts from 'prompts'
 import { db } from './db'
-import { createRoom, deleteRoom, getMessagesSize, getRoomByToken, getRooms, setRoomDescription, setRoomName } from './rooms'
+import { addAdmin, addGlobalAdmin, addGlobalModerator, addModerator, createRoom, deleteRoom, getGlobalAdminsAndModerators, getMessagesSize, getOrCreateUserIdBySessionID, getRoomAdminsAndModerators, getRoomByToken, getRooms, getUserIdBySessionID, removeAdminOrModFromRoom, removeGlobalAdminOrMod, setRoomDescription, setRoomName } from './rooms'
 import { roomsEntity } from '../src/schema'
 
 function validateArgs(args: Record<string, any>, { updateRoom }: { updateRoom: boolean }) {
@@ -159,26 +159,29 @@ export async function parseArgsCommand(args: Record<string, any>) {
         }
       }
 
-      console.warn('Warning: Adding moderators is currently under development feature in bunsogs-cli')
       if (globalRooms) {
         for (const sid of args.addModerators) {
-          // TODO
-          // const u = new User({ sessionId: sid, tryBlinding: true })
-          // u.setModerator({ admin: args.admin, visible: args.visible, addedBy: sysadmin })
-          // console.log(
-          //   `Added ${sid} as ${args.visible ? 'visible' : 'hidden'} ${args.admin ? 'admin' : 'moderator'}`
-          // )
+          if (args.admin) {
+            await addGlobalAdmin({ userSessionID: sid, visible: args.visible })
+          } else {
+            await addGlobalModerator({ userSessionID: sid, visible: args.visible })
+          }
+          console.log(
+            `Added ${sid} as ${args.visible ? 'visible' : 'hidden'} ${args.admin ? 'admin' : 'moderator'}`
+          )
         }
       } else {
         for (const sid of args.addModerators) {
-          // TODO
-          // const u = new User({ sessionId: sid, tryBlinding: true })
-          // for (const room of rooms) {
-          //   room.setModerator({ user: u, admin: args.admin, visible: !args.hidden, addedBy: sysadmin })
-          //   console.log(
-          //     `Added ${u.sessionId} as ${args.hidden ? 'hidden' : 'visible'} ${args.admin ? 'admin' : 'moderator'} of ${room.name} (${room.token})`
-          //   )
-          // }
+          for (const room of rooms) {
+            if (args.admin) {
+              await addAdmin({ roomId: room.id, userSessionID: sid, visible: !args.hidden })
+            } else {
+              await addModerator({ roomId: room.id, userSessionID: sid, visible: !args.hidden })
+            }
+            console.log(
+              `Added ${sid} as ${args.hidden ? 'hidden' : 'visible'} ${args.admin ? 'admin' : 'moderator'} of ${room.name} (${room.token})`
+            )
+          }
         }
       }
     }
@@ -191,55 +194,21 @@ export async function parseArgsCommand(args: Record<string, any>) {
         }
       }
       
-      console.warn('Warning: Deleting moderators is currently under development feature in bunsogs-cli')
       if (globalRooms) {
         for (const sid of args.deleteModerators) {
-          // const u = new User({ sessionId: sid, tryBlinding: true })
-          // const wasAdmin = u.globalAdmin
-          // if (!u.globalAdmin && !u.globalModerator) {
-          //   console.log(`${u.sessionId} was not a global moderator`)
-          // } else {
-          //   u.removeModerator({ removedBy: sysadmin })
-          //   console.log(`Removed ${u.sessionId} as global ${wasAdmin ? 'admin' : 'moderator'}`)
-          // }
-
-          // if (u.isBlinded && sid.startsWith('05')) {
-          //   try {
-          //     const u2 = new User({ sessionId: sid, tryBlinding: false, autovivify: false })
-          //     if (u2.globalAdmin || u2.globalModerator) {
-          //       const wasAdmin = u2.globalAdmin
-          //       u2.removeModerator({ removedBy: sysadmin })
-          //       console.log(`Removed ${u2.sessionId} as global ${wasAdmin ? 'admin' : 'moderator'}`)
-          //     }
-          //   } catch (e) {
-          //     if (!(e instanceof NoSuchUser)) {
-          //       throw e
-          //     }
-          //   }
-          // }
+          const userId = await getUserIdBySessionID(sid)
+          if (userId === null) throw new Error(sid + 'is not global admin/moderator')
+          await removeGlobalAdminOrMod(userId)
+          console.log(`Removed ${sid} (id${userId}) as global admin/moderator`)
         }
       } else {
         for (const sid of args.deleteModerators) {
-          // const u = new User({ sessionId: sid, tryBlinding: true })
-          // let u2 = null
-          // if (u.isBlinded && sid.startsWith('05')) {
-          //   try {
-          //     u2 = new User({ sessionId: sid, tryBlinding: false, autovivify: false })
-          //   } catch (e) {
-          //     if (!(e instanceof NoSuchUser)) {
-          //       throw e
-          //     }
-          //   }
-          // }
-
-          // for (const room of rooms) {
-          //   room.removeModerator({ user: u, removedBy: sysadmin })
-          //   console.log(`Removed ${u.sessionId} as moderator/admin of ${room.name} (${room.token})`)
-          //   if (u2) {
-          //     room.removeModerator({ user: u2, removedBy: sysadmin })
-          //     console.log(`Removed ${u2.sessionId} as moderator/admin of ${room.name} (${room.token})`)
-          //   }
-          // }
+          for (const room of rooms) {
+            const userId = await getUserIdBySessionID(sid)
+            if (userId === null) throw new Error(sid + 'is not global admin/moderator')
+            await removeAdminOrModFromRoom({ roomId: room.id, userId })
+            console.log(`Removed ${sid} as moderator/admin of ${room.name} (${room.token})`)
+          }
         }
       }
     }
@@ -331,16 +300,21 @@ export async function parseArgsCommand(args: Record<string, any>) {
       console.log('No rooms.')
     }
   } else if (args.listGlobalMods) {
-    console.warn('Warning: Listing global moderators is currently under development feature in bunsogs-cli')
-    // const [m, a, hm, ha] = getAllGlobalModerators()
-    // const admins = a.length + ha.length
-    // const mods = m.length + hm.length
+    const { moderators, admins } = await getGlobalAdminsAndModerators()
 
-    // console.log(`${admins} global admins (${ha.length} hidden), ${mods} moderators (${hm.length} hidden):`)
-    // a.forEach(u => console.log(`- ${u.sessionId} (admin)`))
-    // hm.forEach(u => console.log(`- ${u.sessionId} (hidden admin)`))
-    // m.forEach(u => console.log(`- ${u.sessionId} (moderator)`))
-    // hm.forEach(u => console.log(`- ${u.sessionId} (hidden moderator)`))
+    const visibleAdmins: typeof admins = []
+    const hiddenAdmins: typeof admins = []
+    admins.forEach(a => a.visible_mod ? visibleAdmins.push(a) : hiddenAdmins.push(a))
+
+    const visibleModerators: typeof moderators = []
+    const hiddenModerators: typeof moderators = []
+    moderators.forEach(m => m.visible_mod ? visibleModerators.push(m) : hiddenModerators.push(m))
+
+    console.log(`${admins.length} global admins (${hiddenAdmins.length} hidden), ${moderators.length} moderators (${hiddenModerators.length} hidden):`)
+    visibleAdmins.forEach(u => console.log(`- ${u.session_id} (admin)`))
+    hiddenAdmins.forEach(u => console.log(`- ${u.session_id} (hidden admin)`))
+    visibleModerators.forEach(u => console.log(`- ${u.session_id} (moderator)`))
+    hiddenModerators.forEach(u => console.log(`- ${u.session_id} (hidden moderator)`))
   } else {
     console.error('Error: no action given')
     process.exit(1)
@@ -361,9 +335,9 @@ async function printRoom(room: roomsEntity) {
   // filesSize /= 1_000_000
 
   // const active = [1, 7, 14, 30].map(days => activeUsersLast(days * 86400))
-  // const [m, a, hm, ha] = getAllModerators()
-  // const admins = a.length + ha.length
-  // const mods = m.length + hm.length
+  const { admins, moderators } = await getRoomAdminsAndModerators(room.id)
+  const hiddenAdmins = admins.reduce((prev, cur) => !cur.visible_mod ? prev + 1 : prev, 0)
+  const hiddenModerators = admins.reduce((prev, cur) => !cur.visible_mod ? prev + 1 : prev, 0)
 
   // const perms = `${defaultRead ? '+' : '-'}read, ${defaultWrite ? '+' : '-'}write, ${defaultUpload ? '+' : '-'}upload, ${defaultAccessible ? '+' : '-'}accessible`
 
@@ -372,22 +346,14 @@ async function printRoom(room: roomsEntity) {
 ${token}
 ${'='.repeat(token.length)}
 Name: ${name}${description ? `\nDescription: ${description}` :''}
-Messages: ${messages} (${sizeInBytes.toFixed(1)} MB)`)
+Messages: ${messages} (${messagesSize.toFixed(1)} MB)
+Moderators: ${admins.length} admins (${hiddenAdmins} hidden), ${moderators.length} moderators (${hiddenModerators} hidden)`)
   /*Attachments: ${files} (${filesSize.toFixed(1)} MB)
 Reactions: ${rTotal}; top 5: ${reactions.slice(0, 5).map(([r, c]) => `${r} (${c})`).join(', ')}
 Active users: ${active[0]} (1d), ${active[1]} (7d), ${active[2]} (14d), ${active[3]} (30d)
-Default permissions: ${perms}
-Moderators: ${admins} admins (${ha.length} hidden), ${mods} moderators (${hm.length} hidden)*/
+Default permissions: ${perms}*/
 
-  // if (args.verbose && (m.length || a.length || hm.length || ha.length)) {
-  //   console.log(':')
-  //   a.forEach(id => console.log(`    - ${id} (admin)`))
-  //   ha.forEach(id => console.log(`    - ${id} (hidden admin)`))
-  //   m.forEach(id => console.log(`    - ${id} (moderator)`))
-  //   hm.forEach(id => console.log(`    - ${id} (hidden moderator)`))
-  // } else {
   console.log()
-  // }
 }
 
 function roomTokenValid(room) {

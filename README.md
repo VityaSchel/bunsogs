@@ -91,7 +91,7 @@ To add or manage rooms, rooms admins and moderators and global server admins and
 
 1. Interactive, human-friendly, **recommended** (i.e. just type `bunsogs-cli` and hit enter)
   - You will be presented with a graphic interface that you can navigate using keyboard arrows
-2. With arguments, for automation (e.g. `bunsogs-cli --add-room fishing --name "Fish talk"`)
+2. With arguments, for automation (e.g. `bunsogs-cli --add-room bun --name "Bun.sh lovers"`)
   - You can pass options to CLI to automate things, because it will simply run the process, output result and exit, you may skip any confirmation prompts with `-y` argument
 
 In any case you should run CLI in the target bunsogs directory. But if you're advanced user, you can configure bunsogs to run from anywhere: add cli directory to your PATH variable (on most OSes, you should run `echo "export PATH=\$PATH:$(pwd)/cli" >> ${HOME}/.$(basename $SHELL)rc && source ${HOME}/.$(basename $SHELL)rc`), then each time you run `bunsogs-cli` command, pass `BUNSOGS_DB` environment variable with path to targeting bunsogs's db.sqlite3.

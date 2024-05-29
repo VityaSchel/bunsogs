@@ -114,7 +114,7 @@ export interface room_moderatorsEntity {
   'global_moderator': any | null;
   'room': number | null;
   'room_moderator': any | null;
-  'session_id': string | null;
+  'session_id': string;
   'user': number | null;
   'visible_mod': any | null;
 }
