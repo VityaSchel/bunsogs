@@ -216,6 +216,10 @@ If you ever want to restore this user's permissions, simply repeat process until
   - Possible solution is to either allow to input blinded IDs or create a tool that easily resolves session ids <-> blinded ids
 - You can only add one admin/moderator, ban only one user per time
   - We should allow multiple inputs in Session ID fields using `list` type from prompts library
+- Some properties of room do not update until bunsogs instance is restarted
+  - Such properties include: name, description, rate limiting settings
+  - We should eliminate all database calls to such properties in all endpoints and instead refresh rooms properties in some interval like each 1-3 seconds by grouped database query
+  - This should be put in the same looping method as pruning/cleanup job for db (for example for resetting bans that have timeout in `futures` tables)
 
 ## Credits
 

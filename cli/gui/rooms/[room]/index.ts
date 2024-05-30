@@ -8,6 +8,7 @@ import { roomAdminsAndModsMenu } from './admins-and-mods'
 import { roomBansMenu } from './bans'
 import { roomPermissionOverridesMenu } from './permissions'
 import { deleteRoomMenu } from './delete'
+import { roomGeneralSettings } from './general-settings'
 
 export const roomMenu = async (room: roomsEntity) => {
   const value = await drawRoomMenu(room)
@@ -20,6 +21,9 @@ export const roomMenu = async (room: roomsEntity) => {
       return await roomMenu(room)
     case 'avatar':
       await editRoomAvatarMenu(room)
+      return await roomMenu(room)
+    case 'general':
+      await roomGeneralSettings(room)
       return await roomMenu(room)
     case 'adminsAndMods':
       await roomAdminsAndModsMenu(room)
@@ -56,6 +60,7 @@ const drawRoomMenu = async (room: roomsEntity) => {
         description: room.description || undefined
       },
       { title: room.image ? 'Edit avatar' : 'Add avatar', description: 'Avatar is the room\'s picture, displayed in Session clients', value: 'avatar' },
+      { title: 'General settings', description: 'Rate limits, participants DMs', value: 'general' },
       { title: 'Manage mods and admins', value: 'adminsAndMods' },
       { title: 'Ban/unban user(s)', value: 'bans' },
       { title: 'Manage users permissions', description: 'For advanced use', value: 'permissions' },

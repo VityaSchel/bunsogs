@@ -234,3 +234,19 @@ export async function getUserRoomPermissionsOverrides({ roomId, userId }: {
     SELECT * from user_permission_overrides WHERE "user" = $userId AND room = $roomId
   `).get({ $roomId: roomId, $userId: userId })
 }
+
+export async function getRoomRateLimits(roomId: number): Promise<{ size: number | null, interval: number | null }> {
+  const row = await db.query<{ rate_limit_size: number | null, rate_limit_interval: number | null }, { $roomId: number }>(`
+    SELECT rate_limit_size, rate_limit_interval FROM rooms WHERE id = $roomId
+  `).get({ $roomId: roomId })
+  return {
+    size: row?.rate_limit_size ?? null,
+    interval: row?.rate_limit_interval ?? null
+  }
+}
+
+export async function setRoomRateLimits(roomId: number, rateLimitSettings: { size: number, interval: number }) {
+  await db.query<null, { $size: number, $interval: number, $roomId: number }>(`
+    UPDATE rooms SET rate_limit_size = $size, rate_limit_interval = $interval WHERE id = $roomId
+  `).run({ $roomId: roomId, $size: rateLimitSettings.size, $interval: rateLimitSettings.interval })
+}

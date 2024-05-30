@@ -13,6 +13,7 @@ export const mainMenu = async () => {
       break
     case 'exit':
     default:
+      clearLines(1)
       return
   }
   await mainMenu()
