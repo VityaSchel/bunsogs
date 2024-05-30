@@ -6,14 +6,15 @@ Aims to be very fast, flexible and extensible. Drop-in replacement for pysogs �
 
 ## Core features and comparison table
 
-| Feature                                    | pysogs (official) | bunsogs |
-| ------------------------------------------ | ----------------- | ------- |
-| Plugins (antispam, anticsam, DM greetings) | ❌                | ✅      |
-| Per-room rate limit settings               | ❌                | ✅      |
-| Bot API                                    | ❌                | ✅      |
-| GUI CLI                                    | ❌                | ✅      |
-| Auto deleting old messages                 | ❌                | ✅      |
-|                                            |                   |         |
+| Feature                                                | pysogs (official) | bunsogs |
+| ------------------------------------------------------ | ----------------- | ------- |
+| Plugins (antispam, anticsam, DM greetings)             | ❌                | Planned |
+| Per-room rate limit settings                           | ❌                | ✅      |
+| Bot API                                                | ❌                | Planned |
+| GUI CLI                                                | ❌                | ✅      |
+| Auto deleting old messages                             | ❌                | Planned |
+| Only allow certain attachments (no images, only voice) | ❌                | Planned |
+|                                                        |                   |         |
 
 And it can be installed anywhere, not just Ubuntu 22 :)
 
@@ -160,9 +161,40 @@ db.sqlite3 to load in BUNSOGS_DB environment variable.
 
 Note the difference between `+` and `*`: passing `+` to room means add global moderator which will moderate any rooms on server from now on, passing `*` will add moderator to each existing room sequentially.
 
-## Where is data stored?
+## FAQ
+
+### Where is data stored?
 
 Everything is stored inside db.sqlite3 and uploads directory. Periodically copy it in some safe place. Key is stored in key_x25519 file, backup it once.
+
+### How to create a public broadcasting channel (readonly room)?
+
+1. Run `bunsogs-cli`
+2. Go to Rooms -> Create a new room
+3. Enter new room's token, display name, optional description
+4. Select Read-only in room's type
+
+Remember: you can always switch room to read-only mode in room's general settings in bunsogs-cli
+
+### How to disable DMs?
+
+1. Run `bunsogs-cli`
+2. Go to Rooms
+3. Select in which room you want to disable DMs
+4. Go to General settings -> Participants DMs
+5. Switch it to disable
+
+Tip: while you're in general settings, you might want to look at other settings!
+
+### How to change rate limiting settings?
+
+1. Run `bunsogs-cli`
+2. Go to Rooms
+3. Select in which room you want to disable DMs
+4. Go to General settings -> Rate limits
+5. Enter new rate limiting settings
+
+Hint: default rate limiting settings are up to 5 messages in time frame of 16 seconds.
 
 ## Credits
 

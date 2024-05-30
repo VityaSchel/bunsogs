@@ -3,6 +3,7 @@ import { CreateRoomInput } from './types'
 import assert from 'assert'
 import type { room_moderatorsEntity, roomsEntity, user_permission_overridesEntity, usersEntity } from '../src/schema'
 import { getOrCreateUserIdBySessionID } from './global-settings'
+import { PermsFlags } from './utils'
 
 export async function getRooms() {
   const rows = await db.query<roomsEntity, Record<string, never>>('SELECT * FROM rooms ORDER BY id')
@@ -181,4 +182,55 @@ export async function getRoomBans(roomId: number) {
     FROM user_permission_overrides upo JOIN users ON upo."user" = users.id
     WHERE room = $roomId AND upo.banned
   `).all({ $roomId: roomId })
+}
+
+/**
+ * Queries the number of active users in the past `cutoff` seconds.  This is like the
+ * `active_users` property except that it always queries for the instantaneous value
+ * (`active_users` is only updated every few seconds in sogs.cleanup), and supports values
+ * other than the default activity threshold.
+ * Note that room activity records are periodically removed, so specifying a cutoff above
+ * config.ROOM_ACTIVE_PRUNE_THRESHOLD days is useless.
+ */
+export async function activeUsersLast(roomId: number, periodInSeconds: number) {
+  return await db.query('SELECT COUNT(*) FROM room_users WHERE room = $roomId AND last_active >= $since')
+    .get({ $roomId: roomId, $since: Math.floor(Date.now() / 1000) - periodInSeconds })
+}
+
+export async function setRoomPermissionOverride({ roomId, userId, permissions }: {
+  roomId: number
+  userId: number
+  permissions: PermsFlags
+}) {
+  return await db.query<null, { $roomId: number, $userId: number, $read: boolean | null, $accessible: boolean | null, $write: boolean | null, $upload: boolean | null }>(`
+    INSERT INTO user_permission_overrides (room, "user", read, accessible, write, upload)
+    VALUES ($roomId, $userId, $read, $accessible, $write, $upload)
+    ON CONFLICT (room, "user") DO UPDATE SET
+      read = $read, accessible = $accessible, write = $write, upload = $upload
+  `).run({ 
+    $roomId: roomId, 
+    $userId: userId, 
+    $read: permissions.read || null,
+    $accessible: permissions.accessible || null,
+    $write: permissions.write || null,
+    $upload: permissions.upload || null,
+  })
+}
+
+export async function getRoomPermissionsOverrides(roomId: number) {
+  return await db.query<Pick<usersEntity, 'session_id'> & user_permission_overridesEntity, { $roomId: number }>(`
+    SELECT session_id, upo.* FROM user_permission_overrides upo
+    JOIN users ON "user" = users.id
+    WHERE room = $roomId 
+      AND (read IS NOT NULL OR accessible IS NOT NULL OR write IS NOT NULL OR upload IS NOT NULL)
+  `).all({ $roomId: roomId })
+}
+
+export async function getUserRoomPermissionOverrides({ roomId, userId }: {
+  roomId: number, 
+  userId: number 
+}) {
+  return await db.query<user_permission_overridesEntity, { $roomId: number, $userId: number }>(`
+    SELECT * from user_permission_overrides WHERE "user" = $userId AND room = $roomId
+  `).get({ $roomId: roomId, $userId: userId })
 }

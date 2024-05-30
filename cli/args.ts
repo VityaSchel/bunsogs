@@ -1,8 +1,9 @@
 import prompts from 'prompts'
 import { db } from './db'
-import { addAdmin, addModerator, createRoom, deleteRoom, getMessagesSize, getRoomAdminsAndModerators, getRoomByToken, getRooms, removeAdminOrModFromRoom, setRoomDescription, setRoomName } from './rooms'
+import { activeUsersLast, addAdmin, addModerator, createRoom, deleteRoom, getMessagesSize, getRoomAdminsAndModerators, getRoomByToken, getRooms, removeAdminOrModFromRoom, setRoomDescription, setRoomName, setRoomPermissionOverride } from './rooms'
 import { roomsEntity } from '../src/schema'
-import { addGlobalAdmin, addGlobalModerator, getGlobalAdminsAndModerators, getUserIdBySessionID, removeGlobalAdminOrMod } from './global-settings'
+import { addGlobalAdmin, addGlobalModerator, getGlobalAdminsAndModerators, getOrCreateUserIdBySessionID, getUserIdBySessionID, removeGlobalAdminOrMod } from './global-settings'
+import { PermsFlags } from './utils'
 
 function validateArgs(args: Record<string, any>, { updateRoom }: { updateRoom: boolean }) {
   const incompatible = [
@@ -61,34 +62,12 @@ export async function parseArgsCommand(args: Record<string, any>) {
 
     roomTokenValid(args.addRoom)
 
-    const roomId = await createRoom({
+    await createRoom({
       token: args.addRoom,
       name: args.name || args.addRoom,
-      description: args.description
+      description: args.description,
+      permissions: stringifyPermsFlags(perms)
     })
-
-    const permissionsQuery: string[] = []
-    const permissionsQueryParams: { $read?: boolean | null, $write?: boolean | null, $accessible?: boolean | null, $upload?: boolean | null } = {}
-    if ('read' in perms) {
-      permissionsQuery.push('read = $read')
-      permissionsQueryParams.$read = perms.read
-    }
-    if ('write' in perms) {
-      permissionsQuery.push('write = $write')
-      permissionsQueryParams.$write = perms.write
-    }
-    if ('accessible' in perms) {
-      permissionsQuery.push('accessible = $accessible')
-      permissionsQueryParams.$accessible = perms.accessible
-    }
-    if ('upload' in perms) {
-      permissionsQuery.push('upload = $upload')
-      permissionsQueryParams.$upload = perms.upload
-    }
-    if (permissionsQuery.length) {
-      await db.query<roomsEntity, { $roomId: number } & typeof permissionsQueryParams>('UPDATE rooms SET ' + permissionsQuery.join(', ') + ' WHERE id = $roomId')
-        .get({ $roomId: roomId, ...permissionsQueryParams }) as roomsEntity
-    }
     
     const room = await getRoomByToken(args.addRoom)
     if (!room) {
@@ -219,42 +198,50 @@ export async function parseArgsCommand(args: Record<string, any>) {
         console.error('Error: --rooms cannot be \'+\' (i.e. global) when updating room permissions')
         process.exit(1)
       }
+      
+      const users: { id: number, sid: string }[] = []
+      if (args.users) {
+        for(const userSessionID of args.users) {
+          users.push({
+            id: await getOrCreateUserIdBySessionID(userSessionID),
+            sid: userSessionID
+          })
+        }
+      }
 
-      console.warn('Warning: Changing permissions is currently under development feature in bunsogs-cli')
-
-      // let users = []
-      // if (args.users) {
-      //   users = args.users.map(sid => new User({ sessionId: sid, tryBlinding: true }))
-      // }
-
-      // if (users.length === 0) {
-      //   for (const room of rooms) {
-      //     if ('read' in perms) {
-      //       room.defaultRead = perms.read
-      //       console.log(`${room.defaultRead ? 'Enabled' : 'Disabled'} default read permission in ${room.token}`)
-      //     }
-      //     if ('write' in perms) {
-      //       room.defaultWrite = perms.write
-      //       console.log(`${room.defaultWrite ? 'Enabled' : 'Disabled'} default write permission in ${room.token}`)
-      //     }
-      //     if ('accessible' in perms) {
-      //       room.defaultAccessible = perms.accessible
-      //       console.log(`${room.defaultAccessible ? 'Enabled' : 'Disabled'} default accessible permission in ${room.token}`)
-      //     }
-      //     if ('upload' in perms) {
-      //       room.defaultUpload = perms.upload
-      //       console.log(`${room.defaultUpload ? 'Enabled' : 'Disabled'} default upload permission in ${room.token}`)
-      //     }
-      //   }
-      // } else {
-      //   const sysadmin = new SystemUser()
-      //   for (const room of rooms) {
-      //     for (const user of users) {
-      //       room.setPermissions({ user, mod: sysadmin, ...perms })
-      //       console.log(`Updated room permissions for ${user} in ${room.token}`)
-      //     }
-      //   }
-      // }
+      if (users.length === 0) {
+        for (const room of rooms) {
+          const permissionsQuery: string[] = []
+          const permissionsQueryParams: { $read?: boolean | null, $write?: boolean | null, $accessible?: boolean | null, $upload?: boolean | null } = {}
+          if ('read' in perms) {
+            permissionsQuery.push('read = $read')
+            permissionsQueryParams.$read = perms.read
+          }
+          if ('write' in perms) {
+            permissionsQuery.push('write = $write')
+            permissionsQueryParams.$write = perms.write
+          }
+          if ('accessible' in perms) {
+            permissionsQuery.push('accessible = $accessible')
+            permissionsQueryParams.$accessible = perms.accessible
+          }
+          if ('upload' in perms) {
+            permissionsQuery.push('upload = $upload')
+            permissionsQueryParams.$upload = perms.upload
+          }
+          if (permissionsQuery.length) {
+            await db.query<roomsEntity, { $roomId: number } & typeof permissionsQueryParams>('UPDATE rooms SET ' + permissionsQuery.join(', ') + ' WHERE id = $roomId')
+              .get({ $roomId: room.id, ...permissionsQueryParams }) as roomsEntity
+          }
+        }
+      } else {
+        for (const room of rooms) {
+          for (const user of users) {
+            await setRoomPermissionOverride({ roomId: room.id, userId: user.id, permissions: perms })
+            console.log(`Updated room permissions for ${user.sid} in ${room.token}`)
+          }
+        }
+      }
     }
 
     if (args.description !== undefined) {
@@ -333,14 +320,19 @@ async function printRoom(room: roomsEntity) {
   // reactions.sort((a, b) => b[1] - a[1])
 
   const messagesSize = sizeInBytes / 1_000_000
-  // filesSize /= 1_000_000
+  // const filesSize /= 1_000_000
 
-  // const active = [1, 7, 14, 30].map(days => activeUsersLast(days * 86400))
+  const active = await Promise.all(
+    [1, 7, 14, 30].map(async days => Object.values(
+      await activeUsersLast(room.id, days * 86400) as Record<'COUNT(*)', number>
+    ))
+  )
+
   const { admins, moderators } = await getRoomAdminsAndModerators(room.id)
   const hiddenAdmins = admins.reduce((prev, cur) => !cur.visible_mod ? prev + 1 : prev, 0)
   const hiddenModerators = admins.reduce((prev, cur) => !cur.visible_mod ? prev + 1 : prev, 0)
 
-  // const perms = `${defaultRead ? '+' : '-'}read, ${defaultWrite ? '+' : '-'}write, ${defaultUpload ? '+' : '-'}upload, ${defaultAccessible ? '+' : '-'}accessible`
+  const perms = `${room.read ? '+' : '-'}read, ${room.write ? '+' : '-'}write, ${room.upload ? '+' : '-'}upload, ${room.accessible ? '+' : '-'}accessible`
 
   // TODO: add `dedent-js`
   console.log(`
@@ -348,11 +340,11 @@ ${token}
 ${'='.repeat(token.length)}
 Name: ${name}${description ? `\nDescription: ${description}` :''}
 Messages: ${messages} (${messagesSize.toFixed(1)} MB)
-Moderators: ${admins.length} admins (${hiddenAdmins} hidden), ${moderators.length} moderators (${hiddenModerators} hidden)`)
-  /*Attachments: ${files} (${filesSize.toFixed(1)} MB)
-Reactions: ${rTotal}; top 5: ${reactions.slice(0, 5).map(([r, c]) => `${r} (${c})`).join(', ')}
+Moderators: ${admins.length} admins (${hiddenAdmins} hidden), ${moderators.length} moderators (${hiddenModerators} hidden)
 Active users: ${active[0]} (1d), ${active[1]} (7d), ${active[2]} (14d), ${active[3]} (30d)
-Default permissions: ${perms}*/
+Default permissions: ${perms}`)
+  /*Attachments: ${files} (${filesSize.toFixed(1)} MB)
+Reactions: ${rTotal}; top 5: ${reactions.slice(0, 5).map(([r, c]) => `${r} (${c})`).join(', ')}*/
 
   console.log()
 }
@@ -365,7 +357,6 @@ function roomTokenValid(room) {
   }
 }
 
-type PermsFlags = { [k in 'read' | 'write' | 'upload' | 'accessible']?: true | false | null }
 function parseAndSetPermFlags(perms: PermsFlags, flags: string, permSetting: true | false | null) {
   const permFlagToWord = (char: string) => {
     switch (char) {
@@ -392,4 +383,13 @@ function parseAndSetPermFlags(perms: PermsFlags, flags: string, permSetting: tru
     perms[permType] = permSetting
   }
   return perms
+}
+
+function stringifyPermsFlags(perms: PermsFlags): string {
+  let string = ''
+  if(perms.accessible) string += 'a'
+  if(perms.read) string += 'r'
+  if(perms.write) string += 'w'
+  if(perms.upload) string += 'u'
+  return string
 }

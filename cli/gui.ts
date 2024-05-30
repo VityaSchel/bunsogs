@@ -1,9 +1,9 @@
 import prompts from 'prompts'
 import { CreateRoomInput } from './types'
-import { addAdmin, addModerator, createRoom, deleteRoom, getRoomAdminsAndModerators, getRoomBans, getRoomByToken, getRooms, removeAdminOrModFromRoom, roomBan, roomUnban, setRoomDescription, setRoomName } from './rooms'
+import { addAdmin, addModerator, createRoom, deleteRoom, getRoomAdminsAndModerators, getRoomBans, getRoomByToken, getRoomPermissionsOverrides, getRooms, getUserRoomPermissionOverrides, removeAdminOrModFromRoom, roomBan, roomUnban, setRoomDescription, setRoomName, setRoomPermissionOverride } from './rooms'
 import { roomsEntity } from '../src/schema'
 import assert from 'assert'
-import { formatSid } from './utils'
+import { PermsFlags, formatPermsOverride, formatSid } from './utils'
 import { addGlobalAdmin, addGlobalModerator, getGlobalAdminsAndModerators, getGlobalBans, getOrCreateUserIdBySessionID, getUserIdBySessionID, globalBan, globalUnban, removeGlobalAdminOrMod } from './global-settings'
 
 const clearLines = (count) => {
@@ -182,7 +182,7 @@ const drawAddRoomMenu = async (): Promise<CreateRoomInput | null> => {
       ],
     },
   ])
-  const isAborted = !(Object.hasOwn(response, 'token') && Object.hasOwn(response, 'name') && Object.hasOwn(response, 'description'))
+  const isAborted = !(Object.hasOwn(response, 'token') && Object.hasOwn(response, 'name') && Object.hasOwn(response, 'description') && Object.hasOwn(response, 'permissions'))
   if (isAborted) {
     if (Object.hasOwn(response, 'description')) {
       clearLines(4)
@@ -195,7 +195,7 @@ const drawAddRoomMenu = async (): Promise<CreateRoomInput | null> => {
     }
     return null
   } else {
-    clearLines(3)
+    clearLines(4)
     return {
       token: response.token,
       name: response.name,
@@ -225,8 +225,7 @@ const roomMenu = async (room: roomsEntity) => {
       await roomBansMenu(room)
       return await roomMenu(room)
     case 'permissions':
-      // TODO
-      await showError('This section of CLI is still under development')
+      await roomPermissionOverridesMenu(room)
       return await roomMenu(room)
     case 'delete':
       await deleteRoomMenu(room)
@@ -569,6 +568,149 @@ const roomUnbanMenu = async (room: roomsEntity, sessionID: string) => {
     }
   }
   return
+}
+
+const roomPermissionOverridesMenu = async (room: roomsEntity) => {
+  const value = await drawRoomPermissionOverridesMenu(room)
+  switch (value) {
+    case 'addNewOverride':
+      await changeUserRoomPermissionsOverrideMenu(room)
+      return await roomPermissionOverridesMenu(room)
+    case 'back':
+      return
+    case 'disabled':
+      return await roomPermissionOverridesMenu(room)
+    default: {
+      if (value) {
+        await changeUserRoomPermissionsOverrideMenu(room, value)
+        return await roomPermissionOverridesMenu(room)
+      } else {
+        process.exit(0)
+      }
+    }
+  }
+}
+
+const drawRoomPermissionOverridesMenu = async (room: roomsEntity) => {
+  const permissionOverrides = await getRoomPermissionsOverrides(room.id)
+  const response = await prompts({
+    type: 'autocomplete',
+    name: 'value',
+    message: `Rooms ❯ ${room.name} (@${room.token}) ❯ User permissions overrides`,
+    choices: [
+      { title: 'Modify user\'s permisions', value: 'addNewOverride' },
+      { title: 'Go back', value: 'back' },
+      { title: '\x1b[0m\x1b[38;5;235m──────────────────', value: 'disabled' },
+      ...(permissionOverrides.length
+        ? permissionOverrides.map(override => ({
+          title: formatSid(override.session_id) + ` (${formatPermsOverride(override)})`,
+          description: 'Hit enter to edit permissions',
+          value: override.session_id
+        }))
+        : [{ title: '\x1b[0m\x1b[38;5;235mNo users with special permissions', value: 'disabled' }]
+      )
+    ]
+  })
+  clearLines(1)
+  return response.value
+}
+
+const changeUserRoomPermissionsOverrideMenu = async (room: roomsEntity, userSessionId?: string) => {
+  console.log(`\x1b[36m? \x1b[38;1;240mRooms ❯ ${room.name} (@${room.token}) ❯ User permissions overrides ❯ Modify user's permissions\x1b[0m`)
+  let clearSessionIdLine = false
+  if (!userSessionId) {
+    clearSessionIdLine = true
+    const { sessionID } = await prompts({
+      type: 'text',
+      name: 'sessionID',
+      message: 'Session ID of user of whom you want to modify permissions',
+      validate: id => id.length !== 66
+        ? 'Session ID must be exactly 66 characters long'
+        : /05[a-f0-9]+/.test(id)
+          ? true
+          : 'Invalid Session ID format'
+    })
+    if (!sessionID) {
+      clearLines(2)
+      return
+    }
+    userSessionId = sessionID
+  }
+  const userId = await getOrCreateUserIdBySessionID(userSessionId as string)
+  const override = await getUserRoomPermissionOverrides({ roomId: room.id, userId })
+  const response = await prompts([
+    {
+      type: 'select',
+      name: 'accessible',
+      message: 'Accessible',
+      choices: [
+        { title: 'True' + (override !== null && Boolean(override.accessible) === true ? ' (current value)' : ''), description: 'Room requests won\'t throw 404 errors', value: 'true' },
+        { title: 'False' + (override !== null && Boolean(override.accessible) === false ? ' (current value)' : ''), description: 'Room will be invisible for this user', value: 'false' },
+        { title: 'Not specified' + (override?.accessible === null ? ' (current value)' : ''), description: 'Fallback to default value for this room' }
+      ],
+    },
+    {
+      type: 'select',
+      name: 'read',
+      message: 'Read',
+      choices: [
+        { title: 'True' + (override !== null && Boolean(override.read) === true ? ' (current value)' : ''), description: 'User can see messages and request room\'s updates', value: 'true' },
+        { title: 'False' + (override !== null && Boolean(override.read) === false ? ' (current value)' : ''), description: 'Room requests will throw 403 errors', value: 'false' },
+        { title: 'Not specified' + (override?.read === null ? ' (current value)' : ''), description: 'Fallback to default value for this room' }
+      ],
+    },
+    {
+      type: 'select',
+      name: 'write',
+      message: 'Write',
+      choices: [
+        { title: 'True' + (override !== null && Boolean(override.write) === true ? ' (current value)' : ''), description: 'User can send messages', value: 'true' },
+        { title: 'False' + (override !== null && Boolean(override.write) === false ? ' (current value)' : ''), description: 'User can\'t send messages', value: 'false' },
+        { title: 'Not specified' + (override?.write === null ? ' (current value)' : ''), description: 'Fallback to default value for this room' }
+      ],
+    },
+    {
+      type: 'select',
+      name: 'upload',
+      message: 'Upload',
+      choices: [
+        { title: 'True' + (override !== null && Boolean(override.upload) === true ? ' (current value)' : ''), description: 'User can upload files such as images attachments', value: 'true' },
+        { title: 'False' + (override !== null && Boolean(override.upload) === false ? ' (current value)' : ''), description: 'User can\'t upload any files', value: 'false' },
+        { title: 'Not specified' + (override?.upload === null ? ' (current value)' : ''), description: 'Fallback to default value for this room' }
+      ],
+    },
+  ])
+  const isAborted = !(Object.hasOwn(response, 'accessible') && Object.hasOwn(response, 'read') && Object.hasOwn(response, 'write') && Object.hasOwn(response, 'upload'))
+  if (isAborted) {
+    if (Object.hasOwn(response, 'write')) {
+      clearLines(clearSessionIdLine ? 6 : 5)
+    } else if (Object.hasOwn(response, 'read')) {
+      clearLines(clearSessionIdLine ? 5 : 4)
+    } else if (Object.hasOwn(response, 'accessible')) {
+      clearLines(clearSessionIdLine ? 4 : 3)
+    } else {
+      clearLines(clearSessionIdLine ? 3 : 2)
+    }
+    return null
+  } else {
+    clearLines(clearSessionIdLine ? 6 : 5)
+    try {
+      const toFlagValue = strval => strval === 'true' 
+        ? true
+        : strval === 'false'
+          ? false
+          : null
+      const permissions: PermsFlags = {
+        accessible: toFlagValue(response.accessible),
+        read: toFlagValue(response.read),
+        write: toFlagValue(response.write),
+        upload: toFlagValue(response.upload),
+      }
+      await setRoomPermissionOverride({ roomId: room.id, userId, permissions })
+    } catch(e) {
+      await showError(e)
+    }
+  }
 }
 
 const deleteRoomMenu = async (room: roomsEntity) => {
