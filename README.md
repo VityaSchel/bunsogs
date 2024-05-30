@@ -214,6 +214,8 @@ If you ever want to restore this user's permissions, simply repeat process until
 - Blinded IDs are not supported in CLI
   - Everywhere we accept input, it's Session ID, not blinded ID
   - Possible solution is to either allow to input blinded IDs or create a tool that easily resolves session ids <-> blinded ids
+- You can only add one admin/moderator, ban only one user per time
+  - We should allow multiple inputs in Session ID fields using `list` type from prompts library
 
 ## Credits
 
