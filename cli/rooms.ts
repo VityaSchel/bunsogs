@@ -210,10 +210,10 @@ export async function setRoomPermissionOverride({ roomId, userId, permissions }:
   `).run({ 
     $roomId: roomId, 
     $userId: userId, 
-    $read: permissions.read || null,
-    $accessible: permissions.accessible || null,
-    $write: permissions.write || null,
-    $upload: permissions.upload || null,
+    $read: permissions.read ?? null,
+    $accessible: permissions.accessible ?? null,
+    $write: permissions.write ?? null,
+    $upload: permissions.upload ?? null,
   })
 }
 
@@ -226,7 +226,7 @@ export async function getRoomPermissionsOverrides(roomId: number) {
   `).all({ $roomId: roomId })
 }
 
-export async function getUserRoomPermissionOverrides({ roomId, userId }: {
+export async function getUserRoomPermissionsOverrides({ roomId, userId }: {
   roomId: number, 
   userId: number 
 }) {

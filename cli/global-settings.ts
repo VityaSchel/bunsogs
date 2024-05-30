@@ -1,5 +1,6 @@
 import { usersEntity } from '../src/schema'
 import { db } from './db'
+import { PermsFlags } from './utils'
 
 export async function getGlobalAdminsAndModerators() {
   const admins: usersEntity[] = []
@@ -101,3 +102,19 @@ export async function globalUnban(userId: number) {
   await db.query<null, { $userId: number }>('DELETE FROM user_ban_futures WHERE room IS NULL AND "user" = $userId')
     .run({ $userId: userId })
 }
+
+// TODO: global permissions overrides
+// export async function getGlobalPermissionsOverrides() {
+  
+// }
+
+// export async function getUserGlobalPermissionOverrides(userId: number) {
+
+// }
+
+// export async function setGlobalPermissionsOverrides({ userId, permissions }: {
+//   userId: number
+//   permissions: PermsFlags
+// }) {
+
+// }

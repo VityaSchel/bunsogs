@@ -14,6 +14,7 @@ Aims to be very fast, flexible and extensible. Drop-in replacement for pysogs �
 | GUI CLI                                                | ❌                | ✅      |
 | Auto deleting old messages                             | ❌                | Planned |
 | Only allow certain attachments (no images, only voice) | ❌                | Planned |
+| Global permissions overrides                           | ❌                | Planned |
 |                                                        |                   |         |
 
 And it can be installed anywhere, not just Ubuntu 22 :)
@@ -195,6 +196,24 @@ Tip: while you're in general settings, you might want to look at other settings!
 5. Enter new rate limiting settings
 
 Hint: default rate limiting settings are up to 5 messages in time frame of 16 seconds.
+
+### How to disable sending media files for one particular user?
+
+1. Run `bunsogs-cli`
+2. Go to Rooms
+3. Select in which room you want to configure that permission override
+4. Go to Manage users permissions
+5. Search for that user by typing their Session ID or select Modify user's permisions
+6. Skip Accessible, Read, Write prompts by selecting current values
+7. Select False in Upload prompt
+
+If you ever want to restore this user's permissions, simply repeat process until 6th step and then choose Not specified in each prompt, thus resetting all permission overrides to default values in this room.
+
+## Known issues
+
+- Blinded IDs are not supported in CLI
+  - Everywhere we accept input, it's Session ID, not blinded ID
+  - Possible solution is to either allow to input blinded IDs or create a tool that easily resolves session ids <-> blinded ids
 
 ## Credits
 
