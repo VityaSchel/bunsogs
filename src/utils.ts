@@ -1,3 +1,5 @@
+import type { UserPermissions } from '@/room'
+
 export function addSessionMessagePadding(data: any, length: number): string {
   let buffer = Buffer.isBuffer(data) ? data : Buffer.from(data)
 
@@ -24,4 +26,31 @@ export function bindSqliteArray<T extends string[] | bigint[] | NodeJS.TypedArra
       return acc
     }, {})
   }
+}
+
+export function testPermission(userPermissions: UserPermissions, requiredPermissions: ('read' | 'upload' | 'write' | 'accessible')[]) {
+  if (userPermissions.admin || userPermissions.moderator) {
+    return true
+  }
+  if(userPermissions.banned) {
+    return false
+  }
+  
+  if (requiredPermissions.includes('accessible') && (!userPermissions.accessible || !userPermissions.read)) {
+    return false
+  }
+  
+  if (requiredPermissions.includes('read') && !userPermissions.read) {
+    return false
+  }
+  
+  if (requiredPermissions.includes('write') && !userPermissions.write) {
+    return false
+  }
+  
+  if (requiredPermissions.includes('upload') && !userPermissions.upload) {
+    return false
+  }
+
+  return true
 }

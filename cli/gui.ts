@@ -1,9 +1,10 @@
 import prompts from 'prompts'
 import { CreateRoomInput } from './types'
-import { addAdmin, addGlobalAdmin, addGlobalModerator, addModerator, createRoom, deleteRoom, getGlobalAdminsAndModerators, getOrCreateUserIdBySessionID, getRoomAdminsAndModerators, getRoomByToken, getRooms, removeAdminOrModFromRoom, removeGlobalAdminOrMod, setRoomDescription, setRoomName } from './rooms'
+import { addAdmin, addModerator, createRoom, deleteRoom, getRoomAdminsAndModerators, getRoomBans, getRoomByToken, getRooms, removeAdminOrModFromRoom, roomBan, roomUnban, setRoomDescription, setRoomName } from './rooms'
 import { roomsEntity } from '../src/schema'
 import assert from 'assert'
 import { formatSid } from './utils'
+import { addGlobalAdmin, addGlobalModerator, getGlobalAdminsAndModerators, getGlobalBans, getOrCreateUserIdBySessionID, getUserIdBySessionID, globalBan, globalUnban, removeGlobalAdminOrMod } from './global-settings'
 
 const clearLines = (count) => {
   process.stdout.write(`\x1b[${count}A`)
@@ -139,7 +140,7 @@ const drawAddRoomMenu = async (): Promise<CreateRoomInput | null> => {
     {
       type: 'text',
       name: 'token',
-      message: 'Room token',
+      message: 'Room token (visible in URL, a-z, A-Z, 0-9, _ and - characters)',
       validate: value => value === ''
         ? 'Room token can\'t be empty'
         : value.length > 64
@@ -168,10 +169,24 @@ const drawAddRoomMenu = async (): Promise<CreateRoomInput | null> => {
           ? 'Room description must be 1000 characters or less'
           : true
     },
+    {
+      type: 'select',
+      name: 'permissions',
+      message: 'Select default permissions (these can be configured per-user later)',
+      initial: 3,
+      choices: [
+        { title: 'Hidden (none)', value: 'none', description: 'Room will be invite-only' },
+        { title: 'Read-only (ar)', value: 'ar', description: 'Only admins & mods can send messages' },
+        { title: 'Read+write (arw)', value: 'arw', description: 'Everyone can chat, you decide who can send images' },
+        { title: 'Read, write and upload files (arwu)', value: 'Full permissions, everyone can send anything' }
+      ],
+    },
   ])
   const isAborted = !(Object.hasOwn(response, 'token') && Object.hasOwn(response, 'name') && Object.hasOwn(response, 'description'))
   if (isAborted) {
-    if (Object.hasOwn(response, 'name')) {
+    if (Object.hasOwn(response, 'description')) {
+      clearLines(4)
+    } else if (Object.hasOwn(response, 'name')) {
       clearLines(3)
     } else if (Object.hasOwn(response, 'token')) {
       clearLines(2)
@@ -185,6 +200,7 @@ const drawAddRoomMenu = async (): Promise<CreateRoomInput | null> => {
       token: response.token,
       name: response.name,
       description: response.description,
+      permissions: response.permissions === 'none' ? '' : response.permissions
     }
   }
 }
@@ -206,8 +222,7 @@ const roomMenu = async (room: roomsEntity) => {
       await roomAdminsAndModsMenu(room)
       return await roomMenu(room)
     case 'bans':
-      // TODO
-      await showError('This section of CLI is still under development')
+      await roomBansMenu(room)
       return await roomMenu(room)
     case 'permissions':
       // TODO
@@ -456,6 +471,106 @@ const deleteRoomAdminOrMod = async (room: roomsEntity, userSessionID: string) =>
   return
 }
 
+const roomBansMenu = async (room: roomsEntity) => {
+  const value = await drawRoomBansMenu(room)
+  switch (value) {
+    case 'ban':
+      await roomBanMenu(room)
+      return await roomBansMenu(room)
+    case 'back':
+      return
+    case 'disabled':
+      return await roomBansMenu(room)
+    default: {
+      if (value) {
+        await roomUnbanMenu(room, value)
+        return await roomBansMenu(room)
+      } else {
+        process.exit(0)
+      }
+    }
+  }
+}
+
+const drawRoomBansMenu = async (room: roomsEntity) => {
+  const bannedUsers = await getRoomBans(room.id)
+  const response = await prompts({
+    type: 'autocomplete',
+    name: 'value',
+    message: `Rooms ❯ ${room.name} (@${room.token}) ❯ Bans`,
+    choices: [
+      { title: 'Ban user in this room', value: 'ban' },
+      { title: 'Go back', value: 'back' },
+      { title: '\x1b[0m\x1b[38;5;235m──────────────────', value: 'disabled' },
+      ...(bannedUsers.length
+        ? bannedUsers.map(user => ({
+          title: formatSid(user.session_id),
+          description: 'Hit enter to unban',
+          value: user.session_id
+        }))
+        : [{ title: '\x1b[0m\x1b[38;5;235mNo users banned in this room', value: 'disabled' }]
+      )
+    ]
+  })
+  clearLines(1)
+  return response.value
+}
+
+const roomBanMenu = async (room: roomsEntity) => {
+  console.log(`\x1b[36m? \x1b[38;1;240mRooms ❯ ${room.name} (@${room.token}) ❯ Bans ❯ Ban user\x1b[0m`)
+  const { sessionID, timeout } = await prompts([
+    {
+      type: 'text',
+      name: 'sessionID',
+      message: 'Enter Session ID of user you want to ban in this room',
+      validate: id => id.length !== 66
+        ? 'Session ID must be exactly 66 characters long'
+        : /05[a-f0-9]+/.test(id)
+          ? true
+          : 'Invalid Session ID format'
+    },
+    {
+      type: 'number',
+      name: 'timeout',
+      min: 0,
+      max: Number.MAX_VALUE,
+      message: 'Enter time in seconds after which user will be unbanned (optional)',
+    },
+  ])
+  clearLines(sessionID !== undefined ? 3 : 2)
+  if (sessionID) {
+    const userId = await getOrCreateUserIdBySessionID(sessionID)
+    try {
+      await roomBan({ roomId: room.id, userId }, typeof timeout === 'number' ? { timeoutInSeconds: timeout } : undefined)
+    } catch (e) {
+      await showError(e)
+    }
+  }
+  return
+}
+
+const roomUnbanMenu = async (room: roomsEntity, sessionID: string) => {
+  const userId = await getUserIdBySessionID(sessionID)
+  if (!userId) {
+    return await showError('User not found')
+  }
+  console.log(`\x1b[36m? \x1b[38;1;240mRooms ❯ ${room.name} (@${room.token}) ❯ Bans ❯ Unban user\x1b[0m`)
+  const { confirmed } = await prompts({
+    type: 'confirm',
+    name: 'confirmed',
+    message: 'Are you sure you want to unban this user in this room?',
+  })
+  clearLines(2)
+  if (confirmed) {
+    try {
+      await roomUnban({ roomId: room.id, userId })
+    } catch (e) {
+      await showError(e)
+    }
+  }
+  return
+}
+
 const deleteRoomMenu = async (room: roomsEntity) => {
   console.log('\x1b[33mDeleting room includes deleting all messages, files and other content in it.')
   console.log('\x1b[33mIt is permanent and dangerous. If you want to proceed, type room\'s token below')
@@ -500,8 +615,7 @@ const globalSettingsMenu = async () => {
       await globalAdminsAndModsMenu()
       return await globalSettingsMenu()
     case 'bans':
-      // TODO
-      await showError('This section of CLI is still under development')
+      await globalBansMenu()
       return await globalSettingsMenu()
     case 'overrides':
       // TODO
@@ -663,6 +777,106 @@ const deleteGlobalAdminOrMod = async (userSessionID: string) => {
   if (confirmed) {
     try {
       await removeGlobalAdminOrMod(userId)
+    } catch (e) {
+      await showError(e)
+    }
+  }
+  return
+}
+
+const globalBansMenu = async () => {
+  const value = await drawGlobalBansMenu()
+  switch (value) {
+    case 'ban':
+      await globalBanMenu()
+      return await globalBansMenu()
+    case 'back':
+      return
+    case 'disabled':
+      return await globalBansMenu()
+    default: {
+      if (value) {
+        await globalUnbanMenu(value)
+        return await globalBansMenu()
+      } else {
+        process.exit(0)
+      }
+    }
+  }
+}
+
+const drawGlobalBansMenu = async () => {
+  const bannedUsers = await getGlobalBans()
+  const response = await prompts({
+    type: 'autocomplete',
+    name: 'value',
+    message: 'Global settings ❯ Global bans',
+    choices: [
+      { title: 'Ban user globally', value: 'ban' },
+      { title: 'Go back', value: 'back' },
+      { title: '\x1b[0m\x1b[38;5;235m──────────────────', value: 'disabled' },
+      ...(bannedUsers.length
+        ? bannedUsers.map(user => ({
+          title: formatSid(user.session_id),
+          description: 'Hit enter to unban',
+          value: user.session_id
+        }))
+        : [{ title: '\x1b[0m\x1b[38;5;235mNo users banned globally', value: 'disabled' }]
+      )
+    ]
+  })
+  clearLines(1)
+  return response.value
+}
+
+const globalBanMenu = async () => {
+  console.log('\x1b[36m? \x1b[38;1;240mGlobal settings ❯ Global bans ❯ Ban user\x1b[0m')
+  const { sessionID, timeout } = await prompts([
+    {
+      type: 'text',
+      name: 'sessionID',
+      message: 'Enter Session ID of user you want to ban globally',
+      validate: id => id.length !== 66
+        ? 'Session ID must be exactly 66 characters long'
+        : /05[a-f0-9]+/.test(id)
+          ? true
+          : 'Invalid Session ID format'
+    },
+    {
+      type: 'number',
+      name: 'timeout',
+      min: 0,
+      max: Number.MAX_VALUE,
+      message: 'Enter time in seconds after which user will be unbanned (optional)',
+    },
+  ])
+  clearLines(sessionID !== undefined ? 3 : 2)
+  if (sessionID) {
+    const userId = await getOrCreateUserIdBySessionID(sessionID)
+    try {
+      await globalBan(userId, typeof timeout === 'number' ? { timeoutInSeconds: timeout } : undefined)
+    } catch (e) {
+      await showError(e)
+    }
+  }
+  return
+}
+
+const globalUnbanMenu = async (sessionID: string) => {
+  const userId = await getUserIdBySessionID(sessionID)
+  if (!userId) {
+    return await showError('User not found')
+  }
+  console.log('\x1b[36m? \x1b[38;1;240mGlobal settings ❯ Global bans ❯ Unban user\x1b[0m')
+  const { confirmed } = await prompts({
+    type: 'confirm',
+    name: 'confirmed',
+    message: 'Are you sure you want to unban this user globally?',
+  })
+  clearLines(2)
+  if (confirmed) {
+    try {
+      await globalUnban(userId)
     } catch (e) {
       await showError(e)
     }

@@ -1,5 +1,6 @@
 import { getRooms } from '@/room'
 import type { SogsRequest, SogsResponse } from '@/router'
+import { testPermission } from '@/utils'
 import { z } from 'zod'
 
 export async function getRoomRecentMessages(req: SogsRequest): Promise<SogsResponse> {
@@ -32,7 +33,15 @@ export async function getRoomRecentMessages(req: SogsRequest): Promise<SogsRespo
   }
 
   if (req.user !== null) {
+    const permissions = await room.getUserPermissions(req.user)
+    if (!testPermission(permissions, ['accessible'])) {
+      return { status: 404, response: null }
+    } else if (!testPermission(permissions, ['read'])) {
+      return { status: 403, response: null }
+    }
     room.updateUserActivity(req.user)
+  } else if (!room.defaultAccessible) {
+    return { status: 404, response: null }
   }
 
   const messages = await room.getMessages(

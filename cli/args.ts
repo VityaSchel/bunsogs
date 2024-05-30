@@ -1,7 +1,8 @@
 import prompts from 'prompts'
 import { db } from './db'
-import { addAdmin, addGlobalAdmin, addGlobalModerator, addModerator, createRoom, deleteRoom, getGlobalAdminsAndModerators, getMessagesSize, getOrCreateUserIdBySessionID, getRoomAdminsAndModerators, getRoomByToken, getRooms, getUserIdBySessionID, removeAdminOrModFromRoom, removeGlobalAdminOrMod, setRoomDescription, setRoomName } from './rooms'
+import { addAdmin, addModerator, createRoom, deleteRoom, getMessagesSize, getRoomAdminsAndModerators, getRoomByToken, getRooms, removeAdminOrModFromRoom, setRoomDescription, setRoomName } from './rooms'
 import { roomsEntity } from '../src/schema'
+import { addGlobalAdmin, addGlobalModerator, getGlobalAdminsAndModerators, getUserIdBySessionID, removeGlobalAdminOrMod } from './global-settings'
 
 function validateArgs(args: Record<string, any>, { updateRoom }: { updateRoom: boolean }) {
   const incompatible = [

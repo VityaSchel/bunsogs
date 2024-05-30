@@ -1,6 +1,7 @@
 import { Room, getRooms, type UserPermissions } from '@/room'
 import type { SogsRequest, SogsResponse } from '@/router'
 import type { User } from '@/user'
+import { testPermission } from '@/utils'
 
 export async function getRoom(req: SogsRequest): Promise<SogsResponse> {
   const roomToken = req.params?.['token']
@@ -18,6 +19,16 @@ export async function getRoom(req: SogsRequest): Promise<SogsResponse> {
       status: 404,
       response: null
     }
+  }
+
+  if (req.user !== null) {
+    const permissions = await room.getUserPermissions(req.user)
+    if (!testPermission(permissions, ['accessible'])) {
+      return { status: 404, response: null }
+    }
+    room.updateUserActivity(req.user)
+  } else if (!room.defaultAccessible) {
+    return { status: 404, response: null }
   }
 
   return {

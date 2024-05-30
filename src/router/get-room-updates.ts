@@ -1,6 +1,7 @@
 import { getRooms, type UserPermissions } from '@/room'
 import type { SogsRequest, SogsResponse } from '@/router'
 import { getRoomDetails } from '@/router/get-room'
+import { testPermission } from '@/utils'
 
 export async function getRoomUpdates(req: SogsRequest): Promise<SogsResponse> {
   const roomToken = req.params?.['token']
@@ -20,6 +21,17 @@ export async function getRoomUpdates(req: SogsRequest): Promise<SogsResponse> {
       response: null
     }
   }
+  
+  let permissions: UserPermissions | undefined = undefined
+  if (req.user !== null) {
+    permissions = await room.getUserPermissions(req.user)
+    if (!testPermission(permissions, ['accessible'])) {
+      return { status: 404, response: null }
+    }
+    room.updateUserActivity(req.user)
+  } else if (!room.defaultAccessible) {
+    return { status: 404, response: null }
+  }
 
   const user = req.user
 
@@ -34,15 +46,15 @@ export async function getRoomUpdates(req: SogsRequest): Promise<SogsResponse> {
     userIsAdmin = userIsModerator || room.admins.has(user)
   }
 
-  let userPermissions: Pick<UserPermissions, 'read' | 'write' | 'upload' | 'banned'>
-  if (user !== null) {
-    userPermissions = await room.getUserPermissions(user)
-  } else {
-    userPermissions = {
+  if (!permissions) {
+    permissions = {
       read: room.defaultRead,
       write: room.defaultWrite,
       upload: room.defaultUpload,
-      banned: false
+      banned: false,
+      accessible: true,
+      moderator: false,
+      admin: false
     }
   }
 
@@ -59,9 +71,9 @@ export async function getRoomUpdates(req: SogsRequest): Promise<SogsResponse> {
         default_upload: room.defaultUpload,
         default_accessible: room.defaultAccessible,
       } : {}),
-      read: userPermissions.banned ? false : userPermissions.read,
-      write: userPermissions.banned ? false : userPermissions.write,
-      upload: userPermissions.banned ? false : userPermissions.upload,
+      read: permissions.banned ? false : permissions.read,
+      write: permissions.banned ? false : permissions.write,
+      upload: permissions.banned ? false : permissions.upload,
       ...(includeDetails && { 
         details: await getRoomDetails(room, user)
       })

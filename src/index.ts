@@ -90,7 +90,7 @@ const handleOnionConnection = async (request: Request) => {
   }
 
   if (process.env.NODE_ENV === 'development') {
-    console.log('responded with', responseBody) // TODO: remove
+    console.log('Responded with', responseBody) // TODO: remove
   }
 
   const responseData = Buffer.from(responseBody)

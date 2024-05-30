@@ -140,13 +140,7 @@ export class Room {
     ])
   }
 
-  _permissionsCache: Map<number, UserPermissions> = new Map()
   async getUserPermissions(user: User): Promise<UserPermissions> {
-    const permissionsCached = this._permissionsCache.get(user.id)
-    if (permissionsCached !== undefined) {
-      return permissionsCached
-    }
-
     const roomId = this.id
     const permissionsDb = db.query<user_permissionsEntity, { $roomId: number, $user: number }>(`
       SELECT banned, read, accessible, write, upload, moderator, admin
@@ -162,7 +156,6 @@ export class Room {
       moderator: Boolean(permissionsDb?.moderator),
       admin: Boolean(permissionsDb?.admin)
     }
-    this._permissionsCache.set(user.id, permissions)
     return permissions
   }
 
@@ -508,19 +501,23 @@ export class Room {
     ids: number[]
   ) {
     const permissions = await this.getUserPermissions(user)
-    const bindedIds = Utils.bindSqliteArray(ids)
-    if (!permissions.moderator) {
-      const foreignMessage = await db.query<messagesEntity, { $user: number }>(`
-        SELECT EXISTS(
-          SELECT * FROM messages WHERE "user" != $user AND id IN (${bindedIds.k})
-        )
-      `).get({ $user: user.id, ...bindedIds.v })
-      if (foreignMessage && Boolean(Object.values(foreignMessage)[0])) {
-        throw new BadPermission()
+    if(permissions.moderator || permissions.write) {
+      const bindedIds = Utils.bindSqliteArray(ids)
+      if (!permissions.moderator) {
+        const checkForForeignMessages = await db.query<messagesEntity, { $user: number }>(`
+          SELECT EXISTS(
+            SELECT * FROM messages WHERE "user" != $user AND id IN (${bindedIds.k})
+          )
+        `).get({ $user: user.id, ...bindedIds.v })
+        if (checkForForeignMessages && Boolean(Object.values(checkForForeignMessages)[0])) {
+          throw new BadPermission()
+        }
       }
+      await db.query<null, Record<string, number>>(`DELETE FROM message_details WHERE id IN (${bindedIds.k})`)
+        .run(bindedIds.v)
+    } else {
+      throw new BadPermission()
     }
-    await db.query<null, Record<string, number>>(`DELETE FROM message_details WHERE id IN (${bindedIds.k})`)
-      .run(bindedIds.v)
   }
 }
 

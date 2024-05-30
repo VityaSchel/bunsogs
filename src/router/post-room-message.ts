@@ -2,6 +2,7 @@ import { BadPermission, PostRateLimited } from '@/errors'
 import { getRooms } from '@/room'
 import type { SogsRequest, SogsResponse } from '@/router'
 import { User } from '@/user'
+import { testPermission } from '@/utils'
 import { z } from 'zod'
 
 export async function postRoomMessage(req: SogsRequest): Promise<SogsResponse> {
@@ -40,6 +41,18 @@ export async function postRoomMessage(req: SogsRequest): Promise<SogsResponse> {
     return {
       status: 404,
       response: null
+    }
+  } else {
+    if (req.user !== null) {
+      const permissions = await room.getUserPermissions(req.user)
+      if (!testPermission(permissions, ['accessible'])) {
+        return { status: 404, response: null }
+      } else if (!testPermission(permissions, ['write'])) {
+        return { status: 403, response: null }
+      }
+      room.updateUserActivity(req.user)
+    } else if (!room.defaultAccessible) {
+      return { status: 404, response: null }
     }
   }
 

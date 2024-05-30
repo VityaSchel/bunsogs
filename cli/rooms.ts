@@ -1,7 +1,8 @@
 import { db } from './db'
 import { CreateRoomInput } from './types'
 import assert from 'assert'
-import type { room_moderatorsEntity, room_usersEntity, roomsEntity, usersEntity } from '../src/schema'
+import type { room_moderatorsEntity, roomsEntity, user_permission_overridesEntity, usersEntity } from '../src/schema'
+import { getOrCreateUserIdBySessionID } from './global-settings'
 
 export async function getRooms() {
   const rows = await db.query<roomsEntity, Record<string, never>>('SELECT * FROM rooms ORDER BY id')
@@ -15,10 +16,20 @@ export async function getRoomByToken(token: string) {
   return room
 }
 
-export async function createRoom({ token, name, description }: CreateRoomInput): Promise<number> {
+export async function createRoom({ token, name, description, permissions }: CreateRoomInput): Promise<number> {
   try {
-    const row = await db.query<{ id: number }, { $token: string, $name: string, $description: string }>('INSERT INTO rooms(token, name, description) VALUES($token, $name, $description) RETURNING id')
-      .get({ $token: token, $name: name, $description: description })
+    const row = await db.query<{ id: number }, { $token: string, $name: string, $description: string, $read: boolean, $write: boolean, $accessible: boolean, $upload: boolean }>(`
+      INSERT INTO rooms(token, name, description, read, accessible, write, upload) VALUES($token, $name, $description, $read, $write, $accessible, $upload) RETURNING id
+    `)
+      .get({ 
+        $token: token,
+        $name: name,
+        $description: description,
+        $read: permissions.includes('r'),
+        $write: permissions.includes('w'),
+        $accessible: permissions.includes('a'),
+        $upload: permissions.includes('u'),
+      })
     assert(row)
     return row.id
   } catch(e) {
@@ -91,27 +102,6 @@ export async function removeAdminOrModFromRoom({ roomId, userId }: {
     .run({ $roomId: roomId, $userId: userId })
 }
 
-export async function getUserIdBySessionID(sessionID: string) {
-  const user = await db.query<Pick<usersEntity, 'id'>, { $sessionID: string }>('SELECT id FROM users WHERE session_id = $sessionID')
-    .get({ $sessionID: sessionID })
-  if(user === null) {
-    return null
-  } else {
-    return user.id
-  }
-}
-
-export async function getOrCreateUserIdBySessionID(sessionID: string) {
-  const userId = await getUserIdBySessionID(sessionID)
-  if (userId !== null) {
-    return userId
-  } else {
-    const user = await db.query<Pick<usersEntity, 'id'>, { $id: string }>('INSERT INTO users (session_id) VALUES ($id) RETURNING id')
-      .get({ $id: sessionID }) as usersEntity
-    return user.id
-  }
-}
-
 export async function addAdmin({ roomId, userSessionID, visible }: {
   roomId: number
   userSessionID: string
@@ -154,51 +144,41 @@ export async function addModerator({ roomId, userSessionID, visible }: {
   `).run({ $roomId: roomId, $userId: userId, $visible: visible })
 }
 
-
-export async function getGlobalAdminsAndModerators() {
-  const admins: usersEntity[] = []
-  const moderators: usersEntity[] = []
-  const rows = await db.query<usersEntity, Record<string, never>>(`
-    SELECT * FROM users WHERE moderator
-  `).all({})
-  for (const row of rows) {
-    if (row.admin) {
-      admins.push(row)
-    } else {
-      moderators.push(row)
-    }
+export async function roomBan({ roomId, userId }: {
+  roomId: number, 
+  userId: number 
+}, options?: { timeoutInSeconds: number }) {
+  await db.query<null, { $roomId: number, $userId: number }>(`
+    INSERT INTO user_permission_overrides (room, "user", banned, moderator, admin)
+      VALUES ($roomId, $userId, TRUE, FALSE, FALSE)
+    ON CONFLICT (room, "user") DO
+      UPDATE SET banned = TRUE, moderator = FALSE, admin = FALSE
+  `).run({ $userId: userId, $roomId: roomId })
+  await db.query<null, { $roomId: number, $userId: number }>(`
+    DELETE FROM user_ban_futures WHERE room = $roomId AND "user" = $userId
+  `).run({ $roomId: roomId, $userId: userId })
+  if(options?.timeoutInSeconds !== undefined) {
+    await db.query<null, { $roomId: number, $userId: number, $endsAt: number }>(`
+      INSERT INTO user_ban_futures
+      (room, "user", banned, at) VALUES ($roomId, $userId, FALSE, $endsAt)
+    `).run({ $roomId: roomId, $userId: userId, $endsAt: Math.floor(Date.now() / 1000) + options.timeoutInSeconds })
   }
-  return { admins, moderators }
 }
 
-export async function removeGlobalAdminOrMod(userId: number) {
-  await db.query<null, { $userId: number }>(`
-    UPDATE users
-    SET admin = FALSE, moderator = FALSE
-    WHERE id = $userId
-  `).run({ $userId: userId })
-}
-
-export async function addGlobalAdmin({ userSessionID, visible }: {
-  userSessionID: string
-  visible: boolean
+export async function roomUnban({ roomId, userId }: {
+  roomId: number, 
+  userId: number 
 }) {
-  const userId = await getOrCreateUserIdBySessionID(userSessionID)
-  await db.query<null, { $visible: boolean, $userId: number }>(`
-    UPDATE users
-    SET moderator = TRUE, visible_mod = $visible, admin = TRUE
-    WHERE id = $userId
-  `).run({ $userId: userId, $visible: visible })
+  await db.query<null, { $roomId: number, $userId: number }>(`
+    UPDATE user_permission_overrides SET banned = FALSE
+    WHERE room = $roomId AND "user" = $userId AND banned
+  `).run({ $userId: userId, $roomId: roomId })
 }
 
-export async function addGlobalModerator({ userSessionID, visible }: {
-  userSessionID: string
-  visible: boolean
-}) {
-  const userId = await getOrCreateUserIdBySessionID(userSessionID)
-  await db.query<null, { $visible: boolean, $userId: number }>(`
-    UPDATE users
-    SET moderator = TRUE, visible_mod = $visible, admin = FALSE
-    WHERE id = $userId
-  `).run({ $userId: userId, $visible: visible })
+export async function getRoomBans(roomId: number) {
+  return await db.query<Pick<usersEntity, 'session_id'>, { $roomId: number }>(`
+    SELECT session_id
+    FROM user_permission_overrides upo JOIN users ON upo."user" = users.id
+    WHERE room = $roomId AND upo.banned
+  `).all({ $roomId: roomId })
 }
