@@ -4,6 +4,27 @@ Session Open Group Server implementation written in JavaScript using [bun.sh](ht
 
 Aims to be very fast, flexible and extensible. Drop-in replacement for pysogs — works with the same database schema.
 
+- [Bun SOGS](#bun-sogs)
+  - [Core features and comparison table](#core-features-and-comparison-table)
+  - [Prerequisites](#prerequisites)
+  - [How to install](#how-to-install)
+  - [Plugins Configuration](#plugins-configuration)
+    - [Profanity filter](#profanity-filter)
+    - [Alphabet filter](#alphabet-filter)
+    - [Antispam](#antispam)
+    - [Greeting DM messages](#greeting-dm-messages)
+  - [Migration from official pysogs](#migration-from-official-pysogs)
+  - [CLI](#cli)
+    - [CLI Options](#cli-options)
+  - [FAQ](#faq)
+    - [Where is data stored?](#where-is-data-stored)
+    - [How to create a public broadcasting channel (readonly room)?](#how-to-create-a-public-broadcasting-channel-readonly-room)
+    - [How to disable DMs?](#how-to-disable-dms)
+    - [How to change rate limiting settings?](#how-to-change-rate-limiting-settings)
+    - [How to disable sending media files for one particular user?](#how-to-disable-sending-media-files-for-one-particular-user)
+  - [Known issues](#known-issues)
+  - [Credits](#credits)
+
 ## Core features and comparison table
 
 | Feature                                                | pysogs (official) | bunsogs |
@@ -57,11 +78,15 @@ It is your job to configure web server to proxy requests to the specified URL. T
 
 You can run as many bunsogs on your machine as you want, just make sure they're on different ports and each instance runs in its own directory.
 
+To add rooms see [CLI](#cli) section.
+
 ## Plugins Configuration
 
 Plugins are community developed extensible scripts for your SOGS. Below are four plugins maintained by author of the bunsogs. You may install plugins from other developers, but be aware that they will have access to your machine, your sogs (and potentially other sogs on the same machine, if user running this sogs have access to other directories), your networks and database. They are essentially a JavaScript files that can modify behaviour of bunsogs.
 
 To install a plugin, simply download and put it in plugins/ directory. Each plugin has its config, so check that in config.json in plugin's directory and edit if needed.
+
+(Plugins are in development)
 
 ### Profanity filter
 
@@ -89,10 +114,12 @@ In progress
 
 ## CLI
 
-To add or manage rooms, rooms admins and moderators and global server admins and moderators, use bunsogs-cli. You can utilize command line interface to manage your bunsogs in two ways:
+To add or manage rooms list and settings, admins, moderators, bans, use bunsogs-cli. You can utilize command line interface to manage your bunsogs in two ways:
 
 1. Interactive, human-friendly, **recommended** (i.e. just type `bunsogs-cli` and hit enter)
   - You will be presented with a graphic interface that you can navigate using keyboard arrows
+  - Demo:
+  - ![bunsogs-cli interactive mode demo gif](https://r2.hloth.dev/bunsogs-demo.gif)
 2. With arguments, for automation (e.g. `bunsogs-cli --add-room bun --name "Bun.sh lovers"`)
   - You can pass options to CLI to automate things, because it will simply run the process, output result and exit, you may skip any confirmation prompts with `-y` argument
 

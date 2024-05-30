@@ -17,9 +17,10 @@ export const deleteRoomMenu = async (room: roomsEntity) => {
     try {
       await deleteRoom(room.token)
       await showSuccess('Room deleted')
+      return true
     } catch (e) {
       await showError(e)
     }
   }
-  return
+  return false
 }

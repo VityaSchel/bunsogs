@@ -35,8 +35,11 @@ export const roomMenu = async (room: roomsEntity) => {
       await roomPermissionOverridesMenu(room)
       return await roomMenu(room)
     case 'delete':
-      await deleteRoomMenu(room)
-      return await roomMenu(room)
+      if(await deleteRoomMenu(room)) {
+        return
+      } else {
+        return await roomMenu(room)
+      }
     case 'back':
       return
     default:
