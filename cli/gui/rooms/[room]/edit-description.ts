@@ -20,6 +20,7 @@ export const editRoomDescriptionMenu = async (room: roomsEntity) => {
   if (!ctrlCPressed && response.value !== String(room.description)) {
     try {
       await setRoomDescription(room.id, response.value)
+      room.description = response.value
       await showSuccess('Room description changed to ' + response.value)
     } catch (e) {
       await showError(e)

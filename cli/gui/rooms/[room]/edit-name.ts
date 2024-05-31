@@ -20,6 +20,7 @@ export const editRoomNameMenu = async (room: roomsEntity) => {
   if (!ctrlCPressed && response.value !== room.name) {
     try {
       await setRoomName(room.id, response.value)
+      room.name = response.value
       await showSuccess('Room name changed to ' + response.value)
     } catch (e) {
       await showError(e)

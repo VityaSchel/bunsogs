@@ -15,7 +15,8 @@ const configSchema = z.object({
   history_prune_threshold: z.number().int().min(1),
 })
 
-let config: z.infer<typeof configSchema>
+export type Config = z.infer<typeof configSchema>
+let config: Config
 export async function loadConfig() {
   try {
     await fs.access(__dirname + '/../sogs.conf', fs.constants.F_OK)

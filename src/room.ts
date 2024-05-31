@@ -1,7 +1,7 @@
 import { getConfig } from '@/config'
 import { db, getPinnedMessagesFromDb, getRoomAdminsAndModsFromDb, getRoomsFromDb } from '@/db'
 import { BadPermission, PostRateLimited } from '@/errors'
-import type { message_detailsEntity, messagesEntity, user_permissionsEntity } from '@/schema'
+import { type message_detailsEntity, type messagesEntity, type room_moderatorsEntity, type roomsEntity, type user_permissionsEntity } from '@/schema'
 import { User } from '@/user'
 import * as Utils from '@/utils'
 
@@ -131,7 +131,53 @@ export class Room {
     this.rateLimitSettings = rateLimitSettings
   }
 
+  async getAdminsAndMods() {
+    return await db.query<Pick<room_moderatorsEntity, 'session_id' | 'visible_mod' | 'admin'>, { $roomId: number }>(`
+      SELECT session_id, visible_mod, admin FROM room_moderators
+      WHERE room = $roomId
+      ORDER BY session_id
+    `).all({ $roomId: this.id })
+  }
+
   async refresh() {
+    const room = await db.query<roomsEntity, { $roomId: number }>('SELECT * FROM rooms WHERE id = $roomId')
+      .get({ $roomId: this.id })
+    if(room === null) {
+      rooms.delete(this.token)
+      return
+    } else {
+      this.defaultAccessible = room.accessible
+      this.defaultRead = room.read
+      this.defaultWrite = room.write
+      this.defaultUpload = room.upload
+      this.activeUsers = room.active_users
+      this.description = room.description
+      this.imageId = room.image
+      this.rateLimitSettings = {
+        rateLimitInterval: room.rate_limit_interval ?? 5,
+        rateLimitSize: room.rate_limit_size ?? 16
+      }
+    }
+    const admins = new Set<User>(), moderators = new Set<User>(), hiddenAdmins = new Set<User>(), hiddenModerators = new Set<User>()
+    for(const row of await this.getAdminsAndMods()) {
+      if(row.admin) {
+        if(row.visible_mod) {
+          admins.add(new User({ sessionID: row.session_id }))
+        } else {
+          hiddenAdmins.add(new User({ sessionID: row.session_id }))
+        }
+      } else {
+        if(row.visible_mod) {
+          moderators.add(new User({ sessionID: row.session_id }))
+        } else {
+          hiddenModerators.add(new User({ sessionID: row.session_id }))
+        }
+      }
+    }
+    this.admins = admins
+    this.hiddenAdmins = admins
+    this.moderators = moderators
+    this.hiddenModerators = hiddenModerators
     await Promise.all([
       ...Array.from(this.admins.values()).map(admin => admin.refresh()),
       ...Array.from(this.moderators.values()).map(moderator => moderator.refresh()),
@@ -140,8 +186,17 @@ export class Room {
     ])
   }
 
+  _permissionsCache: Map<number, { cachedAt: number, permissions: UserPermissions }> = new Map()
   async getUserPermissions(user: User): Promise<UserPermissions> {
     const roomId = this.id
+    const permissionsCached = this._permissionsCache.get(user.id)
+    if (permissionsCached !== undefined) {
+      if (Date.now() - permissionsCached.cachedAt < 2000/*ms*/) {
+        return permissionsCached.permissions
+      } else {
+        this._permissionsCache.delete(user.id)
+      }
+    }
     const permissionsDb = db.query<user_permissionsEntity, { $roomId: number, $user: number }>(`
       SELECT banned, read, accessible, write, upload, moderator, admin
       FROM user_permissions
@@ -156,6 +211,7 @@ export class Room {
       moderator: Boolean(permissionsDb?.moderator),
       admin: Boolean(permissionsDb?.admin)
     }
+    this._permissionsCache.set(user.id, { cachedAt: Date.now(), permissions })
     return permissions
   }
 

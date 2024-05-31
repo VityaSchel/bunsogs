@@ -4,10 +4,14 @@ import { clearLines } from '../../../_utils'
 import { getRoomRateLimits } from '../../../../rooms'
 import { editRoomRateLimitSettings } from './rate-limits'
 import { editRoomParticipantsDmSetting } from './participants-dm'
+import { editRoomDefaultPermissions } from './default-permissions'
 
 export const roomGeneralSettings = async (room: roomsEntity) => {
   const value = await drawRoomGeneralSettingsMenu(room)
   switch (value) {
+    case 'defaultPermissions':
+      await editRoomDefaultPermissions(room)
+      return await roomGeneralSettings(room)
     case 'rateLimits':
       await editRoomRateLimitSettings(room)
       return await roomGeneralSettings(room)
@@ -28,6 +32,11 @@ const drawRoomGeneralSettingsMenu = async (room: roomsEntity) => {
     name: 'value',
     message: `Rooms ❯ ${room.name} (@${room.token}) ❯ General settings`,
     choices: [
+      {
+        title: 'Default permissions', 
+        value: 'defaultPermissions',
+        description: `Current: ${['accessible', 'read', 'write', 'upload'].map(p => room[p] ? p : '').join(', ')}`
+      },
       {
         title: 'Rate limits', 
         value: 'rateLimits',

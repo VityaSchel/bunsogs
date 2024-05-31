@@ -11,6 +11,12 @@ export async function getRooms() {
   return rows
 }
 
+export async function getRoomById(id: number) {
+  const room = await db.query<roomsEntity, { $id: number }>('SELECT * FROM rooms WHERE id = $id')
+    .get({ $id: id })
+  return room
+}
+
 export async function getRoomByToken(token: string) {
   const room = await db.query<roomsEntity, { $token: string }>('SELECT * FROM rooms WHERE token = $token')
     .get({ $token: token })
@@ -195,6 +201,27 @@ export async function getRoomBans(roomId: number) {
 export async function activeUsersLast(roomId: number, periodInSeconds: number) {
   return await db.query('SELECT COUNT(*) FROM room_users WHERE room = $roomId AND last_active >= $since')
     .get({ $roomId: roomId, $since: Math.floor(Date.now() / 1000) - periodInSeconds })
+}
+
+export async function setRoomDefaultPermissions({ roomId, permissions }: { 
+  roomId: number,
+  permissions: {
+    accessible: boolean
+    read: boolean
+    write: boolean
+    upload: boolean
+  }
+}) {
+  await db.query<null, { $roomId: number, $read: boolean, $accessible: boolean, $write: boolean, $upload: boolean }>(`
+    UPDATE rooms SET accessible = $accessible, read = $read, write = $write, upload = $upload
+    WHERE id = $roomId
+  `).run({
+    $roomId: roomId,
+    $read: permissions.read,
+    $accessible: permissions.accessible,
+    $write: permissions.write,
+    $upload: permissions.upload,
+  })
 }
 
 export async function setRoomPermissionOverride({ roomId, userId, permissions }: {

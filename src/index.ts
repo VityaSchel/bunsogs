@@ -1,14 +1,15 @@
+import bencode from 'bencode'
+import chalk from 'chalk'
+import SJSON from 'secure-json-parse'
+import { z } from 'zod'
 import { loadServerKey } from '@/keypairs'
 import { loadConfig } from '@/config'
 import { loadRooms } from '@/room'
+import { startBackgroundJobs } from '@/background-jobs'
 import { parseBody } from '@/parser'
 import { encryptChannelEncryption } from '@/crypto'
 import { handleIncomingRequest, type SogsRequest } from '@/router'
 import { auth } from '@/middlewares/auth'
-import bencode from 'bencode'
-import SJSON from 'secure-json-parse'
-import { z } from 'zod'
-import chalk from 'chalk'
 import { nonceUsed } from '@/nonce'
 import type { User } from '@/user'
 
@@ -221,3 +222,5 @@ console.log(`\n    Public links to rooms:${
 }`)
 console.log()
 console.log()
+
+startBackgroundJobs()
