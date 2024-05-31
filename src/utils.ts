@@ -1,4 +1,6 @@
 import type { UserPermissions } from '@/room'
+import path from 'path'
+import { v4 as uuid } from 'uuid'
 
 export function addSessionMessagePadding(data: any, length: number): string {
   let buffer = Buffer.isBuffer(data) ? data : Buffer.from(data)
@@ -53,4 +55,19 @@ export function testPermission(userPermissions: UserPermissions, requiredPermiss
   }
 
   return true
+}
+
+export function randomFilename(inheritExtension?: string) {
+  let extension = inheritExtension ? path.extname(inheritExtension) : ''
+  if (!isSafeFilename(extension)) extension = ''
+  return uuid() + (extension ? '.' + extension : '')
+}
+
+export function isSafeFilename(filename: string) {
+  const uploadsDirectory = path.resolve(__dirname, '../uploads')
+  if (filename.includes('\0')) return false
+  const fullPath = path.join(uploadsDirectory, filename)
+  const normalizedPath = path.normalize(fullPath)
+  const isSafe = normalizedPath.startsWith(path.resolve(uploadsDirectory))
+  return isSafe
 }

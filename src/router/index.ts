@@ -1,17 +1,19 @@
 import FindMyWay, { type HTTPMethod } from 'find-my-way'
+import type { User } from '@/user'
 import { getCapabilities } from '@/router/get-capabilities'
 import { getRoom } from '@/router/get-room'
 import { getRoomUpdates } from '@/router/get-room-updates'
 import { getRoomRecentMessages } from '@/router/get-room-recent-messages'
 import { getRoomMessagesSince } from '@/router/get-room-messages-since'
 import { postRoomMessage } from '@/router/post-room-message'
-import type { User } from '@/user'
 import { deleteRoomMessage } from '@/router/delete-room-message'
+import { uploadFileToRoom } from '@/router/upload-file-to-room'
+import { retrieveFileInRoom } from '@/router/retrieve-file-in-room'
 
 export type SogsRequest = {
   endpoint: string
   method: string
-  body: any | null
+  body: Buffer | null
   params?: { [key: string]: string | undefined }
   headers?: { [key: string]: string }
   searchParams?: { [k: string]: string }
@@ -22,6 +24,7 @@ export type SogsResponse = {
   status: number,
   response: any,
   contentType?: string
+  headers?: Record<string, string>
 }
 
 const router = FindMyWay({
@@ -42,6 +45,12 @@ router.on('GET', '/room/:token/messages/since/:since_seqno', getRoomMessagesSinc
 router.on('POST', '/room/:token/message', postRoomMessage)
 // @ts-expect-error fmw expects a handler with a specific signature
 router.on('DELETE', '/room/:token/message/:message_id', deleteRoomMessage)
+// @ts-expect-error fmw expects a handler with a specific signature
+router.on('POST', '/room/:token/file', uploadFileToRoom)
+// @ts-expect-error fmw expects a handler with a specific signature
+router.on('GET', '/room/:token/file/:file_id', retrieveFileInRoom)
+// @ts-expect-error fmw expects a handler with a specific signature
+router.on('GET', '/room/:token/file/:file_id/:filename', retrieveFileInRoom)
 
 export async function handleIncomingRequest(req: SogsRequest): Promise<SogsResponse> {
   const supportedMethods = ['GET', 'POST', 'PUT', 'DELETE']
@@ -73,5 +82,7 @@ const routesMap: { [route: string]: (req: SogsRequest) => SogsResponse | Promise
   getRoomRecentMessages,
   getRoomMessagesSince,
   postRoomMessage,
-  deleteRoomMessage
+  deleteRoomMessage,
+  uploadFileToRoom,
+  retrieveFileInRoom
 }

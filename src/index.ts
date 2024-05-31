@@ -12,6 +12,12 @@ import { handleIncomingRequest, type SogsRequest } from '@/router'
 import { auth } from '@/middlewares/auth'
 import { nonceUsed } from '@/nonce'
 import type { User } from '@/user'
+import { TextDecoder } from 'util'
+
+if (process.env.NODE_ENV === 'development') {
+  console.log()
+  console.warn(chalk.bgYellow(chalk.black('You\'re running bunsogs in development mode which will produce a lot of unwanted logs for bunsogs developers. Make sure you\'re running `bun start`, not `bun run dev`')))
+}
 
 console.log()
 
@@ -26,49 +32,61 @@ Bun.serve({
   port,
   hostname,
   async fetch(request: Request) {
-    const endpoint = new URL(request.url).pathname
-    if (endpoint === '/oxen/v4/lsrpc' && request.method === 'POST') {
-      return await handleOnionConnection(request)
-    } else {
-      return await handleClearnetRequest(request)
+    try {
+      const endpoint = new URL(request.url).pathname
+      if (endpoint === '/oxen/v4/lsrpc' && request.method === 'POST') {
+        return await handleOnionConnection(request)
+      } else {
+        return await handleClearnetRequest(request)
+      }
+    } catch(e) {
+      if(process.env.NODE_ENV === 'development') {
+        throw e
+      } else {
+        return new Response(null, { status: 500 })
+      }
     }
   }
 })
 
 const handleOnionConnection = async (request: Request) => {
-  const body = Buffer.from(await request.arrayBuffer())
-  const { payload: payloadBencoded, encType, remotePk } = parseBody(body)
-  const payloadsSerialized = bencode.decode(payloadBencoded, 'utf-8') as string[]
-  const payloadsDeserialized = payloadsSerialized.map(p => SJSON.parse(p))
-  // console.log('request', payloadsDeserialized) // TODO: remove
+  const requestBody = Buffer.from(await request.arrayBuffer())
+  const { payload: payloadBencoded, encType, remotePk } = parseBody(requestBody)
+  const payloadDecoded = bencode.decode(payloadBencoded) as [Uint8Array, Uint8Array]
+  const payloadMetadata = SJSON.parse(new TextDecoder('utf-8').decode(payloadDecoded[0]))
+  const payloadBody = Buffer.from(payloadDecoded[1])
+  const headers = 'headers' in payloadMetadata 
+    ? Object.fromEntries(Object.entries(payloadMetadata.headers).map(([k,v]) => [k.toLowerCase(), v])) as Record<string, string>
+    : {}
 
-  const targetPayloadDeserialized = payloadsDeserialized[0]
-  const isBatchRequest = typeof targetPayloadDeserialized === 'object' &&
-    'endpoint' in targetPayloadDeserialized &&
-    targetPayloadDeserialized.endpoint === '/batch'
-  let responseBody: any, status: number, contentType: string | undefined
+  console.log('Request:', new TextDecoder('utf-8').decode(payloadDecoded[0]), 'body:', payloadBody.subarray(0, 50).toString('utf-8') + '...')
+
+  const isBatchRequest = typeof payloadMetadata === 'object' &&
+    'endpoint' in payloadMetadata &&
+    payloadMetadata.endpoint === '/batch'
+    
+  let responseBody: any, status: number, contentType: string | undefined, responseHeaders: Record<string, string> = {}
   if (isBatchRequest) {
-    if ('headers' in payloadsDeserialized[0] && 'X-SOGS-Nonce' in payloadsDeserialized[0].headers && nonceUsed(payloadsDeserialized[0].headers['X-SOGS-Nonce'])) {
-      return new Response(null, { status: 400 })
-    }
+    const nonceAlreadyUsed = 'x-sogs-nonce' in headers && nonceUsed(headers['x-sogs-nonce'])
+    if (nonceAlreadyUsed) return new Response(null, { status: 400 })
+
     status = 200
-    responseBody = await handleBatchOnionRequest(payloadsDeserialized)
+    responseBody = await handleBatchOnionRequest({ metadata: payloadMetadata, body: payloadBody })
     contentType = 'application/json'
   } else {
-    const headers = payloadsDeserialized[0].headers
-    if ('X-SOGS-Nonce' in headers && nonceUsed(headers['X-SOGS-Nonce'])) {
+    if ('x-sogs-nonce' in headers && nonceUsed(headers['x-sogs-nonce'])) {
       return new Response(null, { status: 400 })
     }
     const sogsRequest: Omit<SogsRequest, 'user'> = {
-      ...targetPayloadDeserialized,
-      body: payloadsDeserialized[1] || null,
+      ...payloadMetadata,
+      body: payloadBody || null,
       headers
     }
     const authResult = await auth({
       endpoint: sogsRequest.endpoint,
       method: sogsRequest.method,
       headers: sogsRequest.headers,
-      body: JSON.stringify(sogsRequest.body)
+      body: sogsRequest.body
     })
     if (authResult === 403) {
       return new Response(null, { status: 403 })
@@ -78,7 +96,7 @@ const handleOnionConnection = async (request: Request) => {
       authResult
     )
     if (response.body === null) {
-      return new Response(null, { status: response.status })
+      return new Response(null, { status: response.status, headers: response.headers })
     } else {
       if (response.contentType === 'application/json') {
         responseBody = JSON.stringify(response.body)
@@ -87,6 +105,7 @@ const handleOnionConnection = async (request: Request) => {
       }
       status = response.status
       contentType = response.contentType
+      responseHeaders = response.headers ?? {}
     }
   }
 
@@ -104,34 +123,34 @@ const handleOnionConnection = async (request: Request) => {
   const responseBencoded = Buffer.concat([start, lenMeta, responseMeta, lenData, responseData, end])
 
   const responseEncrypted = encryptChannelEncryption(encType, responseBencoded, remotePk)
-  return new Response(responseEncrypted, { status })
+  return new Response(responseEncrypted, { status, headers: responseHeaders })
 }
 
-const handleBatchOnionRequest = async (payloadsDeserialized: any[]) => {
-  const headers = z.record(z.string(), z.string()).optional().parse(payloadsDeserialized[0].headers)
-  const payload = payloadsDeserialized[1] as Array<any>
+const handleBatchOnionRequest = async ({ metadata, body }: { metadata: any, body: Buffer }) => {
+  const headers = z.record(z.string(), z.string()).optional().parse(metadata.headers)
+  const payload = z.array(z.record(z.string(), z.any())).parse(SJSON.parse(body.toString('utf-8')))
   const responses = await Promise.all(payload.map(async (tpd: any) => {
     try {
       const authResult = await auth({
         endpoint: '/batch',
         method: 'POST',
         headers: headers,
-        body: JSON.stringify(payloadsDeserialized[1])
+        body
       })
       if (authResult === 403) {
         return { code: 403, body: null }
       }
       const { path, ...inc } = tpd
-      const { status, body, contentType } = await handleOnionRequest(
+      const { status, body: response, contentType, headers: responseHeaders } = await handleOnionRequest(
         {
           endpoint: path,
           ...inc,
           headers,
-          body: payloadsDeserialized[1]
+          body
         },
         authResult
       )
-      return { code: status, body, headers: { 'content-type': contentType } }
+      return { code: status, body: response, headers: { 'content-type': contentType, ...responseHeaders } }
     } catch(e) {
       if(process.env.NODE_ENV === 'development') {
         console.error(e)
@@ -151,10 +170,13 @@ const handleOnionRequest = async (payloadDeserialized: Omit<SogsRequest, 'user'>
   }).safeParseAsync(payloadDeserialized)
 
   if (!payload.success) {
+    if(process.env.NODE_ENV === 'development') {
+      console.error(payload.error)
+    }
     return { body: null, status: 400 }
   }
 
-  const { status, response, contentType } = await handleIncomingRequest({
+  const { status, response, headers, contentType } = await handleIncomingRequest({
     endpoint: payload.data.endpoint,
     method: payload.data.method,
     body: payload.data.body || null,
@@ -163,26 +185,27 @@ const handleOnionRequest = async (payloadDeserialized: Omit<SogsRequest, 'user'>
   })
 
   if (response === null) {
-    return { body: null, status }
+    return { body: null, status, headers: {} }
   } else {
-    return { body: response, status, contentType }
+    return { body: response, status, contentType, headers }
   }
 }
 
 const handleClearnetRequest = async (request: Request) => {
-  let body: string | null = null
+  let body: Buffer | null = null
   if (request.method === 'POST') {
-    body = await request.text()
+    body = Buffer.from(await request.arrayBuffer())
   }
 
   const endpoint = new URL(request.url).pathname
-  const headers = Object.fromEntries(request.headers.entries())
-  if ('X-SOGS-Nonce' in headers && nonceUsed(headers['X-SOGS-Nonce'])) {
+  const headers = Object.fromEntries(Array.from(request.headers.entries()).map(([k,v]) => [k.toLowerCase(), v]))
+  if ('x-sogs-nonce' in headers && nonceUsed(headers['x-sogs-nonce'])) {
     return new Response(null, { status: 400 })
   }
   const sogsRequest = {
     endpoint,
     body: body && SJSON.parse(body),
+    files: [], // TODO: handle clearnet request files
     method: request.method,
     headers
   }
@@ -207,7 +230,8 @@ const handleClearnetRequest = async (request: Request) => {
   return new Response(response, {
     status,
     headers: {
-      ...(contentType && { 'content-type': contentType })
+      ...(contentType && { 'content-type': contentType }),
+      ...sogsResponse.headers
     }
   })
 }

@@ -8,22 +8,22 @@ export async function auth({ method, endpoint, headers, body }: {
   method: string,
   endpoint: string,
   headers?: Record<string, string>,
-  body: string | null
+  body: Buffer | null
 }): Promise<User | null | 403> {
   try {
     const headersParsing = await z.object({
-      'X-SOGS-Pubkey': z.string().length(66).regex(/^(00|15)[0-9a-f]+$/),
-      'X-SOGS-Timestamp': z.coerce.number().int().positive(),
-      'X-SOGS-Nonce': z.string().length(22).base64().or(z.string().length(24).base64()
+      'x-sogs-pubkey': z.string().length(66).regex(/^(00|15)[0-9a-f]+$/),
+      'x-sogs-timestamp': z.coerce.number().int().positive(),
+      'x-sogs-nonce': z.string().length(22).base64().or(z.string().length(24).base64()
         .or(z.string().length(32).regex(/^[0-9a-f]+$/))),
-      'X-SOGS-Signature': z.string().length(88).base64()
+      'x-sogs-signature': z.string().length(88).base64()
     }).safeParseAsync(headers)
     if (!headersParsing.success) {
       return null
     }
 
     let sessionID: string
-    const pubkeyHeader = Buffer.from(headersParsing.data['X-SOGS-Pubkey'], 'hex')
+    const pubkeyHeader = Buffer.from(headersParsing.data['x-sogs-pubkey'], 'hex')
     const publicKeyRaw = pubkeyHeader.subarray(1)
     enum PubkeyHeaderPrefix {
       SESSION_ID = 0x00,
@@ -49,8 +49,8 @@ export async function auth({ method, endpoint, headers, body }: {
     }
 
     const pubkey = getServerKey().publicKey
-    const nonce = Buffer.from(headersParsing.data['X-SOGS-Nonce'], 'base64')
-    const timestamp = Buffer.from(String(headersParsing.data['X-SOGS-Timestamp']))
+    const nonce = Buffer.from(headersParsing.data['x-sogs-nonce'], 'base64')
+    const timestamp = Buffer.from(String(headersParsing.data['x-sogs-timestamp']))
     const methodBuf = Buffer.from(method)
     const path = Buffer.from(decodeURI(endpoint), 'utf-8')
     let computedSignature = Buffer.concat([pubkey, nonce, timestamp, methodBuf, path])
@@ -68,10 +68,13 @@ export async function auth({ method, endpoint, headers, body }: {
     const signatureMatches = crypto.verify(null,
       computedSignature,
       userPubKey,
-      Buffer.from(headersParsing.data['X-SOGS-Signature'], 'base64')
+      Buffer.from(headersParsing.data['x-sogs-signature'], 'base64')
     )
 
     if (!signatureMatches) {
+      if(process.env.NODE_ENV === 'development') {
+        console.error('Request signature does not match. Expected:', computedSignature)
+      }
       throw new Error('Invalid signature')
     }
 
@@ -81,6 +84,6 @@ export async function auth({ method, endpoint, headers, body }: {
   }
 }
 
-function hashBody(body: string): Buffer {
+function hashBody(body: Buffer): Buffer {
   return Buffer.from(new Bun.CryptoHasher('blake2b512').update(body).digest().buffer)
 }

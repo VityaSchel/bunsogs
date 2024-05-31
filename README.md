@@ -7,7 +7,7 @@ Aims to be very fast, flexible and extensible. Drop-in replacement for pysogs â€
 - [Bun SOGS](#bun-sogs)
   - [Core features and comparison table](#core-features-and-comparison-table)
   - [Prerequisites](#prerequisites)
-  - [How to install](#how-to-install)
+  - [Install](#install)
   - [Plugins Configuration](#plugins-configuration)
     - [Profanity filter](#profanity-filter)
     - [Alphabet filter](#alphabet-filter)
@@ -23,6 +23,8 @@ Aims to be very fast, flexible and extensible. Drop-in replacement for pysogs â€
     - [How to change rate limiting settings?](#how-to-change-rate-limiting-settings)
     - [How to disable sending media files for one particular user?](#how-to-disable-sending-media-files-for-one-particular-user)
   - [Known issues](#known-issues)
+  - [Caveats](#caveats)
+  - [Security](#security)
   - [Credits](#credits)
 
 ## Core features and comparison table
@@ -46,7 +48,7 @@ You will need a Linux server with a static IP address and a CPU modern enough to
 
 This implementation is not intended to be end server, but rather a local webserver. You will need to configure, for example, nginx proxy server, to handle requests and redirect them to this server.
 
-## How to install
+## Install
 
 1. Clone this repository into some folder
   ```
@@ -72,9 +74,9 @@ Finally, start your SOGS:
 ```
 bun start
 ```
-Use this command whenever you want to start server, others are just preparations. You can use `PORT=1234 bun start` and/or `HOSTNAME=192.168.0.1` environmental variables to **override** sogs.config variables for PORT and HOSTNAME
+Use this command whenever you want to start server, others are just preparations. Keep in mind that you have to be in the bunsogs directory. You can use `PORT=1234 bun start` and/or `HOSTNAME=192.168.0.1` environmental variables to **override** sogs.config variables for PORT and HOSTNAME
 
-It is your job to configure web server to proxy requests to the specified URL. To leave SOGS running, you can use any persisting daemon you like. For example, to use [pm2](https://www.npmjs.com/package/pm2), install it like this: `bun install -g pm2` and to start daemon, use `pm2 start "bun start" --name="My Session Community"` (provide any name you like), also run `pm2 startup` to add pm2 to system autoruns.
+It is your job to configure web server to proxy requests to the specified URL. To leave SOGS running, you can use any persisting daemon you like. For example, to use [pm2](https://www.npmjs.com/package/pm2), install it like this: `bun install -g pm2` and to start daemon, use `pm2 start "bun start" --name="My Session Community"` (provide any name you like), also run `pm2 startup` to add pm2 to system autoruns. Don't forget to increase file size limit from default 1mb if configuring nginx reverse proxy.
 
 You can run as many bunsogs on your machine as you want, just make sure they're on different ports and each instance runs in its own directory.
 
@@ -243,6 +245,11 @@ If you ever want to restore this user's permissions, simply repeat process until
   - Possible solution is to either allow to input blinded IDs or create a tool that easily resolves session ids <-> blinded ids
 - You can only add one admin/moderator, ban only one user per time
   - We should allow multiple inputs in Session ID fields using `list` type from prompts library
+
+## Caveats
+
+- Bunsogs aims to be fastest, not most compatible
+  - Don't expect bunsogs to support legacy API or legacy Session clients, as well as old pysogs database schemas
 
 ## Credits
 
