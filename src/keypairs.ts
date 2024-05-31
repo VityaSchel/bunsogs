@@ -3,6 +3,8 @@ import crypto from 'node:crypto'
 import nacl from 'tweetnacl'
 import fs from 'fs/promises'
 import chalk from 'chalk'
+import type { usersEntity } from '@/schema'
+import { db } from '@/db'
 
 const hexRegex = /^[a-f0-9]+$/
 const base64regex = /^([0-9a-zA-Z+/]{4})*(([0-9a-zA-Z+/]{2}==)|([0-9a-zA-Z+/]{3}=))?$/
@@ -121,10 +123,24 @@ export async function loadServerKey() {
 
     publicServerKey = Buffer.from(keypair.publicKey)
     privateServerKey = Buffer.from(keypair.secretKey)
+
+    createSystemUserIfNeeded()
   }
 
   return {
     privateKey: privateServerKey,
     publicKey: publicServerKey
+  }
+}
+
+async function createSystemUserIfNeeded() {
+  const systemUser = await db.query<Pick<usersEntity, 'session_id'>, Record<string, never>>('SELECT session_id FROM users WHERE id = 0').get({})
+  if (systemUser === null || !systemUser.session_id.startsWith('ff')) {
+    await db.query<null, { $sessionId: string }>(`
+      INSERT INTO users (id, session_id, moderator, admin, visible_mod)
+        VALUES (0, $sessionId, TRUE, TRUE, FALSE)
+      ON CONFLICT (id) DO UPDATE
+        SET session_id = $sessionId, moderator = TRUE, admin = TRUE, visible_mod = FALSE
+    `).run({ $sessionId: 'ff'+publicServerKey.toString('hex') })
   }
 }

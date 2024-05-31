@@ -3,7 +3,7 @@ import { Database } from 'bun:sqlite'
 import fs from 'fs/promises'
 import path from 'path'
 
-let dbPath: string
+export let dbPath: string
 try {
   dbPath = path.resolve(process.env.BUNSOGS_DB || './db.sqlite3')
 } catch(e) {

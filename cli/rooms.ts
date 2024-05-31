@@ -1,9 +1,12 @@
-import { db } from './db'
+import { db, dbPath } from './db'
 import { CreateRoomInput } from './types'
 import assert from 'assert'
-import type { room_moderatorsEntity, roomsEntity, user_permission_overridesEntity, usersEntity } from '../src/schema'
+import type { filesEntity, room_moderatorsEntity, roomsEntity, user_permission_overridesEntity, usersEntity } from '../src/schema'
 import { getOrCreateUserIdBySessionID } from './global-settings'
 import { PermsFlags } from './utils'
+import fs from 'fs/promises'
+import path from 'path'
+import { v4 as uuid } from 'uuid'
 
 export async function getRooms() {
   const rows = await db.query<roomsEntity, Record<string, never>>('SELECT * FROM rooms ORDER BY id')
@@ -276,4 +279,61 @@ export async function setRoomRateLimits(roomId: number, rateLimitSettings: { siz
   await db.query<null, { $size: number, $interval: number, $roomId: number }>(`
     UPDATE rooms SET rate_limit_size = $size, rate_limit_interval = $interval WHERE id = $roomId
   `).run({ $roomId: roomId, $size: rateLimitSettings.size, $interval: rateLimitSettings.interval })
+}
+
+export async function setRoomAvatar({ roomId, roomToken, filepath }: {
+  roomId: number
+  roomToken: string
+  filepath: string | null
+}): Promise<number> {
+  if (filepath === null) {
+    const roomRow = await db.query<Pick<roomsEntity, 'image'>, { $roomId: number }>(`
+      SELECT image FROM rooms WHERE id = $roomId
+    `).get({ $roomId: roomId })
+    if (roomRow === null) {
+      throw new Error('Room not found')
+    }
+    if (roomRow.image === null) {
+      return -1
+    }
+    const fileRow = await db.query<Pick<filesEntity, 'path'>, { $fileId: number }>(`
+      SELECT path FROM files WHERE id = $fileId
+    `).get({ $fileId: roomRow.image })
+    if (fileRow === null) {
+      return -1
+    }
+    await db.query<null, { $roomId: number }>(`
+      UPDATE rooms SET image = NULL WHERE id = $roomId
+    `).run({ $roomId: roomId })
+    await fs.unlink(path.resolve(path.dirname(dbPath), fileRow.path))
+    return -1
+  } else {
+    const filename = uuid()
+    const filestats = await fs.stat(filepath)
+    const insertedFile = await db.query<{ id: number }, { $roomId: number, $userId: number, $size: number, $expiry: number | null, $filename: string }>(`
+      INSERT INTO files (room, uploader, size, expiry, filename, path)
+      VALUES ($roomId, $userId, $size, $expiry, $filename, 'tmp')
+      RETURNING id
+    `).get({ 
+      $roomId: roomId, 
+      $userId: 0, 
+      $size: filestats.size,
+      $expiry: null,
+      $filename: filename
+    })
+    if (insertedFile === null) throw new Error('Couldn\'t insert file to database')
+    const fileId = insertedFile.id
+    const storageFilename = fileId + '_' + filename
+    const relativePath = `uploads/${roomToken}/${storageFilename}`
+    const uploadsDirectory = path.resolve(path.dirname(dbPath), './uploads', roomToken)
+    await fs.mkdir(uploadsDirectory, { recursive: true })
+    await fs.copyFile(filepath, path.resolve(path.dirname(dbPath), relativePath))
+    await db.query<null, { $path: string, $fileId: number }>(`
+      UPDATE files SET path = $path WHERE id = $fileId
+    `).run({ $path: relativePath, $fileId: fileId })
+    await db.query<null, { $fileId: number, $roomId: number }>(`
+      UPDATE rooms SET image = $fileId WHERE id = $roomId
+    `).run({ $roomId: roomId, $fileId: fileId })
+    return fileId
+  }
 }

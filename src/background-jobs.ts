@@ -3,6 +3,8 @@ import { db } from '@/db'
 import { noncesExpirations, noncesUsed } from '@/nonce'
 import { getRooms } from '@/room'
 import type { user_ban_futuresEntity } from '@/schema'
+import fs from 'fs/promises'
+import path from 'path'
 
 let config: Config
 
@@ -31,6 +33,7 @@ async function startCleanupJobs() {
   // eslint-disable-next-line no-constant-condition
   while (true) {
     await Promise.all([
+      pruneFiles(),
       pruneMessagesHistory(),
       pruneExpiredDms(),
       pruneRoomActivity(),
@@ -38,6 +41,24 @@ async function startCleanupJobs() {
       applyPermissionsUpdates()
     ])
     await new Promise(resolve => setTimeout(resolve, intervals.dbCleanup))
+  }
+}
+
+async function pruneFiles() {
+  const rows = await db.query<{ path: string }, { $expiry: number }>(`
+    DELETE FROM files WHERE expiry < $expiry RETURNING path
+  `).all({ $expiry: Math.floor(Date.now() / 1000) })
+  const paths = rows.map(r => r.path)
+  for(const filepath of paths) {
+    try {
+      await fs.unlink(path.resolve(__dirname, '../', filepath))
+    } catch(e) {
+      if (e && typeof e === 'object' && 'code' in e && e.code === 'ENOENT') {
+        continue
+      } else {
+        console.error('Error while pruning old uploaded file:', e)
+      }
+    }
   }
 }
 
@@ -71,7 +92,7 @@ async function expireNonceHistory() {
 
 async function applyPermissionsUpdates() {
   const $now = Math.floor(Date.now() / 1000)
-  const results = await db.query<null, { $now: number }>(`
+  await db.query<null, { $now: number }>(`
     INSERT INTO user_permission_overrides (room, "user", read, write, upload)
     SELECT f.room, f."user",
         CASE WHEN f.read IS NULL THEN o.read ELSE NULLIF(f.read, r.read) END,

@@ -52,14 +52,14 @@ Bun.serve({
 const handleOnionConnection = async (request: Request) => {
   const requestBody = Buffer.from(await request.arrayBuffer())
   const { payload: payloadBencoded, encType, remotePk } = parseBody(requestBody)
-  const payloadDecoded = bencode.decode(payloadBencoded) as [Uint8Array, Uint8Array]
+  const payloadDecoded = bencode.decode(payloadBencoded) as [Uint8Array, Uint8Array | undefined]
   const payloadMetadata = SJSON.parse(new TextDecoder('utf-8').decode(payloadDecoded[0]))
-  const payloadBody = Buffer.from(payloadDecoded[1])
+  const payloadBody = payloadDecoded[1] ? Buffer.from(payloadDecoded[1]) : null
   const headers = 'headers' in payloadMetadata 
     ? Object.fromEntries(Object.entries(payloadMetadata.headers).map(([k,v]) => [k.toLowerCase(), v])) as Record<string, string>
     : {}
 
-  console.log('Request:', new TextDecoder('utf-8').decode(payloadDecoded[0]), 'body:', payloadBody.subarray(0, 50).toString('utf-8') + '...')
+  console.log('Request:', new TextDecoder('utf-8').decode(payloadDecoded[0]), 'body:', payloadBody?.subarray(0, 50).toString('utf-8') + '...')
 
   const isBatchRequest = typeof payloadMetadata === 'object' &&
     'endpoint' in payloadMetadata &&
@@ -67,6 +67,10 @@ const handleOnionConnection = async (request: Request) => {
     
   let responseBody: any, status: number, contentType: string | undefined, responseHeaders: Record<string, string> = {}
   if (isBatchRequest) {
+    if (payloadBody === null) {
+      return new Response(null, { status: 400 })
+    }
+
     const nonceAlreadyUsed = 'x-sogs-nonce' in headers && nonceUsed(headers['x-sogs-nonce'])
     if (nonceAlreadyUsed) return new Response(null, { status: 400 })
 
