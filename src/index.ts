@@ -141,7 +141,7 @@ const handleBatchOnionRequest = async ({ metadata, body }: { metadata: any, body
       const authResult = await auth({
         endpoint: '/batch',
         method: 'POST',
-        headers: headers,
+        headers: headers && Object.fromEntries(Object.entries(headers).map(([k, v]) => [k.toLowerCase(), v])),
         body
       })
       if (authResult === 403) {
