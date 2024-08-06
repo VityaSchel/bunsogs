@@ -1,11 +1,9 @@
-import { blindSessionID } from '@/crypto'
 import { db } from '@/db'
 import type { usersEntity } from '@/schema'
 
 export class User {
   id = -1
   sessionID = ''
-  blindedID = ''
   banned = false
   admin = false
   moderator = false
@@ -15,16 +13,12 @@ export class User {
 
   constructor(options:
     { id: number } |
-    { sessionID: string } |
-    { blindedID: string }
+    { sessionID: string }
   ) {
     if ('sessionID' in options) {
       this.sessionID = options.sessionID
-      this.blindedID = blindSessionID(this.sessionID)
     } else if('id' in options) {
       this.id = options.id
-    } else if('blindedSessionID' in options) {
-      this.blindedID = options.blindedID
     } else {
       throw new Error('Invalid options')
     }
@@ -33,14 +27,9 @@ export class User {
   async refresh(options?: { autovivify?: boolean }): Promise<void> {
     let userDb: usersEntity
     if (this.id === -1) {
-      let sessionID: string
-      if(this.sessionID) {
-        sessionID = this.sessionID
-      } else {
-        if(this.blindedID === '') {
-          throw new Error('User is not initialized')
-        }
-        sessionID = blindSessionID(this.sessionID)
+      const sessionID = this.sessionID
+      if (!sessionID) {
+        throw new Error('User is not initialized')
       }
 
       const result = await db.query<usersEntity, { $sessionID: string }>('SELECT * FROM users WHERE session_id = $sessionID')
@@ -69,7 +58,6 @@ export class User {
     this.created = userDb.created
     this.lastActive = userDb.last_active
     this.sessionID = userDb.session_id
-    this.blindedID = blindSessionID(this.sessionID)
     this.id = userDb.id
   }
 }

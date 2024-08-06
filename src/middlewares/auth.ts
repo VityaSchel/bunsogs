@@ -33,7 +33,7 @@ export async function auth({ method, endpoint, headers, body }: {
     if (pubkeyHeader[0] === PubkeyHeaderPrefix.SESSION_ID) {
       sessionID = '05' + Buffer.from(sodium.crypto_sign_ed25519_pk_to_curve25519(publicKeyRaw)).toString('hex')
     } else if(pubkeyHeader[0] === PubkeyHeaderPrefix.BLINDED_ID) {
-      throw new Error('Not implemented')
+      sessionID = '15' + Buffer.from(publicKeyRaw).toString('hex')
     } else {
       throw new Error('Invalid pubkey header')
     }

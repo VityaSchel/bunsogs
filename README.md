@@ -24,7 +24,6 @@ Aims to be very fast, flexible and extensible. Drop-in replacement for pysogs â€
     - [How to disable sending media files for one particular user?](#how-to-disable-sending-media-files-for-one-particular-user)
   - [Known issues](#known-issues)
   - [Caveats](#caveats)
-  - [Security](#security)
   - [Credits](#credits)
 
 ## Core features and comparison table
@@ -125,7 +124,7 @@ To add or manage rooms list and settings, admins, moderators, bans, use bunsogs-
 2. With arguments, for automation (e.g. `bunsogs-cli --add-room bun --name "Bun.sh lovers"`)
   - You can pass options to CLI to automate things, because it will simply run the process, output result and exit, you may skip any confirmation prompts with `-y` argument
 
-In any case you should run CLI in the target bunsogs directory. But if you're advanced user, you can configure bunsogs to run from anywhere: add cli directory to your PATH variable (on most OSes, you should run `echo "export PATH=\$PATH:$(pwd)/cli" >> ${HOME}/.$(basename $SHELL)rc && source ${HOME}/.$(basename $SHELL)rc`), then each time you run `bunsogs-cli` command, pass `BUNSOGS_DB` environment variable with path to targeting bunsogs's db.sqlite3.
+In any case you should run CLI in the target bunsogs directory. But if you're advanced user, you can configure bunsogs to run from anywhere: add cli directory to your PATH variable (on most OSes, you should run `echo "export PATH=\$PATH:$(pwd)/cli" >> ${HOME}/.$(basename $SHELL)rc && source ${HOME}/.$(basename $SHELL)rc`), then each time you run `bunsogs-cli` command, pass `BUNSOGS_DIR` environment variable with path to targeting bunsogs's root directory with db.sqlite3 and key_x25519.
 
 ### CLI Options
 
@@ -185,8 +184,7 @@ Examples:
   bunsogs-cli --clear-perms rwua --rooms="*" --users 050123456  Remove overrides for user 0501234... on all rooms
   789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
 
-A database will be loaded from current directory, if one exists. You can override this by specifying a path to the
-db.sqlite3 to load in BUNSOGS_DB environment variable.
+A database will be loaded from current directory, if one exists. You can override this by specifying a path to the directory with db.sqlite3 and key_x25519 files in BUNSOGS_DIR environment variable.
 ```
 
 Note the difference between `+` and `*`: passing `+` to room means add global moderator which will moderate any rooms on server from now on, passing `*` will add moderator to each existing room sequentially.

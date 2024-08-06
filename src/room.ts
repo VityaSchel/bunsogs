@@ -115,18 +115,18 @@ export class Room {
     this.messageSequence = messageSequence
     this.created = created
     this.pinnedMessages = pinnedMessages
-    const moderatorsUsers = moderators.map(x => new User(x.startsWith('15') ? { blindedID: x } : { sessionID: x }))
+    const moderatorsUsers = moderators.map(x => new User({ sessionID: x }))
     this.moderators = new Set(moderatorsUsers)
-    const adminsUsers = admins.map(x => new User(x.startsWith('15') ? { blindedID: x } : { sessionID: x }))
+    const adminsUsers = admins.map(x => new User({ sessionID: x }))
     this.admins = new Set(adminsUsers)
     this.defaultRead = defaultRead
     this.defaultAccessible = defaultAccessible
     this.defaultWrite = defaultWrite
     this.defaultUpload = defaultUpload
     this.imageId = imageId
-    const hiddenModeratorsUsers = hiddenModerators.map(x => new User(x.startsWith('15') ? { blindedID: x } : { sessionID: x }))
+    const hiddenModeratorsUsers = hiddenModerators.map(x => new User({ sessionID: x }))
     this.hiddenModerators = new Set(hiddenModeratorsUsers)
-    const hiddenAdminsUsers = hiddenAdmins.map(x => new User(x.startsWith('15') ? { blindedID: x } : { sessionID: x }))
+    const hiddenAdminsUsers = hiddenAdmins.map(x => new User({ sessionID: x }))
     this.hiddenAdmins = new Set(hiddenAdminsUsers)
     this.rateLimitSettings = rateLimitSettings
   }
@@ -549,7 +549,7 @@ export class Room {
 
     const msg: { [k in keyof message_detailsEntity]?: any } & { reactions: Record<string, any> } = {
       id: msgId,
-      session_id: user.blindedID,
+      session_id: user.sessionID,
       posted: row.posted,
       seqno: row.seqno,
       data: data.toString('base64'),

@@ -1,6 +1,7 @@
 import { usersEntity } from '../src/schema'
-import { db } from './db'
+import { db, key } from './db'
 import { PermsFlags } from './utils'
+import { blindSessionId } from '@session.js/blinded-session-id'
 
 export async function getGlobalAdminsAndModerators() {
   const admins: usersEntity[] = []
@@ -30,7 +31,11 @@ export async function addGlobalAdmin({ userSessionID, visible }: {
   userSessionID: string
   visible: boolean
 }) {
-  const userId = await getOrCreateUserIdBySessionID(userSessionID)
+  const sessionId = userSessionID.startsWith('05') ? blindSessionId({
+    sessionId: userSessionID,
+    serverPk: Buffer.from(key.publicKey).toString('hex')
+  }) : userSessionID
+  const userId = await getOrCreateUserIdBySessionID(sessionId)
   await db.query<null, { $visible: boolean, $userId: number }>(`
     UPDATE users
     SET moderator = TRUE, visible_mod = $visible, admin = TRUE
@@ -42,7 +47,11 @@ export async function addGlobalModerator({ userSessionID, visible }: {
   userSessionID: string
   visible: boolean
 }) {
-  const userId = await getOrCreateUserIdBySessionID(userSessionID)
+  const sessionId = userSessionID.startsWith('05') ? blindSessionId({
+    sessionId: userSessionID,
+    serverPk: Buffer.from(key.publicKey).toString('hex')
+  }) : userSessionID
+  const userId = await getOrCreateUserIdBySessionID(sessionId)
   await db.query<null, { $visible: boolean, $userId: number }>(`
     UPDATE users
     SET moderator = TRUE, visible_mod = $visible, admin = FALSE

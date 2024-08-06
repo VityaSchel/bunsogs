@@ -11,7 +11,7 @@ export const addGlobalModeratorMenu = async () => {
       message: 'Session ID of user which you want to make a global moderator',
       validate: id => id.length !== 66
         ? 'Session ID must be exactly 66 characters long'
-        : /05[a-f0-9]+/.test(id)
+        : /(05|15)[a-f0-9]+/.test(id)
           ? true
           : 'Invalid Session ID format'
     },

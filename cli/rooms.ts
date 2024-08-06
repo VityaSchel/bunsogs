@@ -1,4 +1,4 @@
-import { db, dbPath } from './db'
+import { db, dbPath, key } from './db'
 import { CreateRoomInput } from './types'
 import assert from 'assert'
 import type { filesEntity, room_moderatorsEntity, roomsEntity, user_permission_overridesEntity, usersEntity } from '../src/schema'
@@ -7,6 +7,7 @@ import { PermsFlags } from './utils'
 import fs from 'fs/promises'
 import path from 'path'
 import { v4 as uuid } from 'uuid'
+import { blindSessionId } from '@session.js/blinded-session-id'
 
 export async function getRooms() {
   const rows = await db.query<roomsEntity, Record<string, never>>('SELECT * FROM rooms ORDER BY id')
@@ -117,7 +118,11 @@ export async function addAdmin({ roomId, userSessionID, visible }: {
   userSessionID: string
   visible: boolean
 }) {
-  const userId = await getOrCreateUserIdBySessionID(userSessionID)
+  const sessionId = userSessionID.startsWith('05') ? blindSessionId({
+    sessionId: userSessionID,
+    serverPk: Buffer.from(key.publicKey).toString('hex')
+  }) : userSessionID
+  const userId = await getOrCreateUserIdBySessionID(sessionId)
   await db.query<null, { $roomId: number, $userId: number, $visible: boolean }>(`
     INSERT INTO user_permission_overrides
       (room,
@@ -138,7 +143,11 @@ export async function addModerator({ roomId, userSessionID, visible }: {
   userSessionID: string
   visible: boolean
 }) {
-  const userId = await getOrCreateUserIdBySessionID(userSessionID)
+  const sessionId = userSessionID.startsWith('05') ? blindSessionId({
+    sessionId: userSessionID,
+    serverPk: Buffer.from(key.publicKey).toString('hex')
+  }) : userSessionID
+  const userId = await getOrCreateUserIdBySessionID(sessionId)
   await db.query<null, { $roomId: number, $userId: number, $visible: boolean }>(`
     INSERT INTO user_permission_overrides
       (room,

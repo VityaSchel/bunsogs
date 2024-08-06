@@ -1,4 +1,3 @@
-import { generateBlindedId } from '@/blinding'
 import { deriveSymmetricKey, getServerKey } from '@/keypairs'
 import crypto from 'node:crypto'
 
@@ -81,12 +80,4 @@ function encryptOpenSSL(algorithm: string, taglen: number, plain: Buffer, key: B
   }
 
   return Buffer.concat([iv, encrypted, tag])
-}
-
-export function blindSessionID(sessionID: string | Buffer): string {
-  const idHex = typeof sessionID === 'string'
-    ? sessionID
-    : sessionID.toString('hex')
-  
-  return generateBlindedId(idHex, getServerKey().publicKey.toString('hex'))
 }

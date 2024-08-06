@@ -4,29 +4,35 @@ import { roomsEntity } from '../../../../../src/schema'
 import { getOrCreateUserIdBySessionID } from '../../../../global-settings'
 import { getUserRoomPermissionsOverrides, setRoomPermissionOverride } from '../../../../rooms'
 import { PermsFlags } from '../../../../utils'
+import { key } from '../../../../db'
+import { blindSessionId } from '@session.js/blinded-session-id'
 
 export const changeUserRoomPermissionsOverridesMenu = async (room: roomsEntity, userSessionId?: string) => {
   console.log(`\x1b[36m? \x1b[38;1;240mRooms ❯ ${room.name} (@${room.token}) ❯ User permissions overrides ❯ Modify user's permissions\x1b[0m`)
   let clearSessionIdLine = false
   if (!userSessionId) {
     clearSessionIdLine = true
-    const { sessionID } = await prompts({
+    const { userSessionID } = await prompts({
       type: 'text',
-      name: 'sessionID',
+      name: 'userSessionID',
       message: 'Session ID of user of whom you want to modify permissions',
       validate: id => id.length !== 66
         ? 'Session ID must be exactly 66 characters long'
-        : /05[a-f0-9]+/.test(id)
+        : /(05|15)[a-f0-9]+/.test(id)
           ? true
           : 'Invalid Session ID format'
     })
-    if (!sessionID) {
+    if (!userSessionID) {
       clearLines(2)
       return
     }
-    userSessionId = sessionID
+    userSessionId = userSessionID
   }
-  const userId = await getOrCreateUserIdBySessionID(userSessionId as string)
+  const sessionId = userSessionId!.startsWith('05') ? blindSessionId({
+    sessionId: userSessionId!,
+    serverPk: Buffer.from(key.publicKey).toString('hex')
+  }) : userSessionId
+  const userId = await getOrCreateUserIdBySessionID(sessionId as string)
   const overrides = await getUserRoomPermissionsOverrides({ roomId: room.id, userId })
   const currentAccessible = overrides?.accessible !== null ? Boolean(overrides!.accessible) : null
   const currentRead = overrides?.accessible !== null ? Boolean(overrides!.accessible) : null
