@@ -64,7 +64,7 @@ const handleOnionConnection = async (request: Request) => {
 
   const isBatchRequest = typeof payloadMetadata === 'object' &&
     'endpoint' in payloadMetadata &&
-    payloadMetadata.endpoint === '/batch'
+    ['/batch', '/sequence'].includes(payloadMetadata.endpoint)
     
   let responseBody: any, status: number, contentType: string | undefined, responseHeaders: Record<string, string> = {}
   if (isBatchRequest) {
@@ -76,7 +76,11 @@ const handleOnionConnection = async (request: Request) => {
     if (nonceAlreadyUsed) return new Response(null, { status: 400 })
 
     status = 200
-    responseBody = await handleBatchOnionRequest({ metadata: payloadMetadata, body: payloadBody })
+    responseBody = await handleBatchOnionRequest({ 
+      metadata: payloadMetadata, 
+      body: payloadBody,
+      batchEndpoint: payloadMetadata.endpoint
+    })
     contentType = 'application/json'
   } else {
     if ('x-sogs-nonce' in headers && nonceUsed(headers['x-sogs-nonce'])) {
@@ -127,19 +131,22 @@ const handleOnionConnection = async (request: Request) => {
 
   const responseBencoded = Buffer.concat([start, lenMeta, responseMeta, lenData, responseData, end])
   const responseEncrypted = encryptChannelEncryption(encType, responseBencoded, remotePk)
-  return new Response(responseEncrypted, { status, headers: {
-    'content-type': 'text/html; charset=utf-8',
-    ...responseHeaders
-  } })
+  return new Response(responseEncrypted, {
+    status: status === 201 ? 200 : status, 
+    headers: {
+      'content-type': 'text/html; charset=utf-8',
+      ...responseHeaders
+    } 
+  })
 }
 
-const handleBatchOnionRequest = async ({ metadata, body }: { metadata: any, body: Buffer }) => {
-  const headers = z.record(z.string(), z.string()).optional().parse(metadata.headers)
+const handleBatchOnionRequest = async ({ metadata, body, batchEndpoint }: { metadata: any, body: Buffer, batchEndpoint: string }) => {
+  const headers = z.record(z.string(), z.union([z.string(), z.number().transform(String)])).optional().parse(metadata.headers)
   const payload = z.array(z.record(z.string(), z.any())).parse(SJSON.parse(body.toString('utf-8')))
   const responses = await Promise.all(payload.map(async (tpd: any) => {
     try {
       const authResult = await auth({
-        endpoint: '/batch',
+        endpoint: batchEndpoint,
         method: 'POST',
         headers: headers && Object.fromEntries(Object.entries(headers).map(([k, v]) => [k.toLowerCase(), v])),
         body
@@ -172,13 +179,13 @@ const handleOnionRequest = async (payloadDeserialized: Omit<SogsRequest, 'user'>
   const payload = await z.object({
     endpoint: z.string(),
     method: z.string(),
-    headers: z.record(z.string(), z.string()).optional(),
+    headers: z.record(z.string(), z.union([z.string(), z.number().transform(String)])).optional(),
     body: z.any().optional()
   }).safeParseAsync(payloadDeserialized)
 
   if (!payload.success) {
     if(process.env.NODE_ENV === 'development') {
-      console.error(payload.error)
+      console.error('Error while parsing onion request body', payload.error)
     }
     return { body: null, status: 400 }
   }
@@ -235,7 +242,7 @@ const handleClearnetRequest = async (request: Request) => {
   }
 
   return new Response(response, {
-    status,
+    status: status === 201 ? 200 : status,
     headers: {
       ...(contentType && { 'content-type': contentType }),
       ...sogsResponse.headers

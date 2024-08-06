@@ -72,7 +72,10 @@ export async function postRoomMessage(req: SogsRequest): Promise<SogsResponse> {
     signature: z.string().length(88).base64(),
     whisper_to: z.string().length(66).regex(/^[a-z0-9]+$/).optional(),
     whisper_mods: z.boolean().optional(),
-    files: z.array(z.number().int().min(0)).optional()
+    files: z.array(z.union([
+      z.coerce.number().int().min(0).transform(Number),
+      z.number().int().min(0)
+    ])).optional()
   }).safeParseAsync(parsedBody)
   if(!body.success) {
     return { status: 400, response: null }

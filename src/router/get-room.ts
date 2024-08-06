@@ -65,21 +65,21 @@ export async function getRoomDetails(room: Room, user: User | null) {
   return {
     active_users: room.activeUsers,
     active_users_cutoff: room.activeUsersCutoff,
-    admins: room.admins,
+    admins: Array.from(room.admins).map(a => a.blindedID),
     created: room.created / 1000,
     description: room.description,
     image_id: room.imageId,
     info_updates: room.infoUpdates,
     message_sequence: room.messageSequence,
-    moderators: room.moderators,
+    moderators: Array.from(room.moderators).map(a => a.blindedID),
     name: room.name,
     ...((isUserAdmin || isUserModerator) ? {
       default_read: room.defaultRead,
       default_write: room.defaultWrite,
       default_upload: room.defaultUpload,
       default_accessible: room.defaultAccessible,
-      hidden_admins: room.hiddenAdmins,
-      hidden_moderators: room.hiddenModerators
+      hidden_admins: Array.from(room.hiddenAdmins).map(a => a.blindedID),
+      hidden_moderators: Array.from(room.hiddenModerators).map(a => a.blindedID)
     } : {}),
     token: room.token,
     pinned_messages: room.pinnedMessages.map(pm => ({

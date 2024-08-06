@@ -19,6 +19,7 @@ export async function auth({ method, endpoint, headers, body }: {
       'x-sogs-signature': z.string().length(88).base64()
     }).safeParseAsync(headers)
     if (!headersParsing.success) {
+      console.log('Error while parsing auth', headers, headersParsing.error)
       return null
     }
 
