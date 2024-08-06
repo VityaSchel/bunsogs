@@ -41,6 +41,7 @@ Bun.serve({
       }
     } catch(e) {
       if(process.env.NODE_ENV === 'development') {
+        console.error(e)
         throw e
       } else {
         return new Response(null, { status: 500 })
@@ -114,7 +115,7 @@ const handleOnionConnection = async (request: Request) => {
   }
 
   if (process.env.NODE_ENV === 'development') {
-    console.log('Responded with', responseBody) // TODO: remove
+    console.log('Responded with', status, responseBody) // TODO: remove
   }
 
   const responseData = Buffer.from(responseBody)
@@ -125,9 +126,11 @@ const handleOnionConnection = async (request: Request) => {
   const end = Buffer.from('e')
 
   const responseBencoded = Buffer.concat([start, lenMeta, responseMeta, lenData, responseData, end])
-
   const responseEncrypted = encryptChannelEncryption(encType, responseBencoded, remotePk)
-  return new Response(responseEncrypted, { status, headers: responseHeaders })
+  return new Response(responseEncrypted, { status, headers: {
+    'content-type': 'text/html; charset=utf-8',
+    ...responseHeaders
+  } })
 }
 
 const handleBatchOnionRequest = async ({ metadata, body }: { metadata: any, body: Buffer }) => {

@@ -427,6 +427,32 @@ export class Room {
 
     return msgs
   }
+  
+  async _ownFiles({ msgId, files, userId }: {
+    msgId: number,
+    files: number[],
+    userId: number
+  }) {
+    const bindedFiles = Utils.bindSqliteArray(files)
+    await db.query<null, { $messageId: number, $expiry: number, $roomId: number, $recent: number, $userId: number }>(`
+      UPDATE files SET
+        message = $messageId,
+        expiry = $expiry
+      WHERE id IN (${bindedFiles.k})
+        AND room = $roomId
+        AND uploader = $userId
+        AND message IS NULL
+        AND uploaded >= $recent
+        AND expiry IS NOT NULL
+    `).run({
+      $messageId: msgId,
+      $expiry: Math.floor(Date.now() / 1000) + getConfig().expiry * 60 * 60 * 24,
+      $recent: Math.floor(Date.now() / 1000) - 60 * 60,
+      $roomId: this.id,
+      $userId: userId,
+      ...bindedFiles.v
+    })
+  }
 
   async updateUserActivity(user: User) {
     await db.query<never, { $user: number, $roomId: number, $now: number }>(`
@@ -437,7 +463,7 @@ export class Room {
   }
 
   /**
-   * Adds a post to the room.  The user must have write permissions.
+   * Adds a post (sendMessage) to the room.  The user must have write permissions.
 
    * Raises BadPermission if the user doesn't have posting permission; PostRejected if the
    * post was rejected (such as subclass PostRateLimited() if the post was rejected for too
@@ -502,16 +528,15 @@ export class Room {
       $whisperMods: whisperMods || 0
     })
 
-    if(files?.length) {
-      // Take ownership of any uploaded files attached to the post:
-      // this._own_files(msg_id, files, user) TODO
-    }
-
     if(msgInsert === null) {
       throw new Error('Failed to insert message')
     }
 
     const msgId = msgInsert.id
+
+    if (files?.length) {
+      await this._ownFiles({ msgId, files, userId: user.id })
+    }
 
     const row = db.prepare<{ posted: number, seqno: number }, { $msgId: number }>(
       'SELECT posted, seqno FROM messages WHERE id = $msgId'
@@ -524,7 +549,7 @@ export class Room {
 
     const msg: { [k in keyof message_detailsEntity]?: any } & { reactions: Record<string, any> } = {
       id: msgId,
-      session_id: user,
+      session_id: user.blindedID,
       posted: row.posted,
       seqno: row.seqno,
       data: data.toString('base64'),

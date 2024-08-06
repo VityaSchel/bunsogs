@@ -12,6 +12,7 @@ export const db = new Database(__dirname + '../db.sqlite3', { create: true })
 const newDatabase = await db.query('SELECT name FROM sqlite_master WHERE type="table"').all().length === 0
 
 const migrations = getMigrations(__dirname + '../migrations/updates')
+migrations.forEach(migration => migration.version += 1)
 if (newDatabase) {
   migrations.unshift(getMigrations(__dirname + '../migrations/init')[0])
 }

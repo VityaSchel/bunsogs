@@ -60,7 +60,7 @@ export const drawAddRoomMenu = async (): Promise<CreateRoomInput | null> => {
         { title: 'Hidden (none)', value: 'none', description: 'Room will be invite-only' },
         { title: 'Read-only (ar)', value: 'ar', description: 'Only admins & mods can send messages' },
         { title: 'Read+write (arw)', value: 'arw', description: 'Everyone can chat, you decide who can send images' },
-        { title: 'Read, write and upload files (arwu)', value: 'Full permissions, everyone can send anything' }
+        { title: 'Read, write and upload files (arwu)', value: 'arwe', description: 'Full permissions, everyone can send anything' }
       ],
     },
   ])
