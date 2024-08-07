@@ -1,7 +1,7 @@
 import { getConfig } from '@/config'
 import { db, getPinnedMessagesFromDb, getRoomAdminsAndModsFromDb, getRoomsFromDb } from '@/db'
 import { BadPermission, PostRateLimited } from '@/errors'
-import { type message_detailsEntity, type messagesEntity, type room_moderatorsEntity, type roomsEntity, type user_permissionsEntity } from '@/schema'
+import { type filesEntity, type message_detailsEntity, type messagesEntity, type room_moderatorsEntity, type roomsEntity, type user_permissionsEntity } from '@/schema'
 import { User } from '@/user'
 import * as Utils from '@/utils'
 
@@ -214,6 +214,15 @@ export class Room {
     }
     this._permissionsCache.set(user.id, { cachedAt: Date.now(), permissions })
     return permissions
+  }
+
+  async isRegularMessage(messageId: number): Promise<boolean> {
+    const row = await db.query<{ 'COUNT(*)': number }, { $messageId: number, $roomId: number }>(`
+      SELECT COUNT(*) FROM messages
+      WHERE room = $roomId AND id = $messageId AND data IS NOT NULL
+          AND NOT filtered AND whisper IS NULL AND NOT whisper_mods
+    `).get({ $roomId: this.id, $messageId: messageId })
+    return row !== null && row['COUNT(*)'] > 0
   }
 
   /**
@@ -704,6 +713,61 @@ export class Room {
       WHERE room = $roomId AND "user" = $userId
     `).run({ $roomId: this.id, $userId: user.id })
     await this.refresh()
+  }
+
+  async pin({ messageId, pinnedBy }: {
+    messageId: number
+    pinnedBy: User
+  }) {
+    if(!this.isRegularMessage(messageId)) {
+      throw new Error('Message not found')
+    }
+    await db.query<null, { $roomId: number, $messageId: number, $pinnedBy: number, $now: number }>(`
+      INSERT INTO pinned_messages (room, message, pinned_by) VALUES ($roomId, $messageId, $pinnedBy)
+      ON CONFLICT (room, message) DO UPDATE SET pinned_by = $pinnedBy, pinned_at = $now
+    `).run({ $roomId: this.id, $messageId: messageId, $pinnedBy: pinnedBy.id, $now: Math.floor(Date.now() / 1000) })
+    await this.refresh()
+  }
+
+  async unpin({ messageId }: {
+    messageId: number
+  }) {
+    const files = await db.query<Pick<filesEntity, 'id'>, { $roomId: number, $messageId: number }>(`
+      SELECT id FROM files WHERE room = $roomId AND message = $messageId
+    `).all({ $roomId: this.id, $messageId: messageId })
+    const filesBind = Utils.bindSqliteArray(files.map(x => x.id))
+    await db.query<null, { $expiry: number }>(`
+      UPDATE files SET expiry = uploaded + $expiry WHERE id IN (${filesBind.k})
+    `).run({
+      $expiry: getConfig().expiry * 60 * 60 * 24,
+      ...filesBind.v,
+    })
+    await db.query<null, { $roomId: number, $messageId: number }>(`
+      DELETE FROM pinned_messages WHERE room = $roomId AND message = $messageId
+    `).run({ $roomId: this.id, $messageId: messageId })
+    await this.refresh()
+  }
+
+  async unpinAll() {
+    const files = await db.query<Pick<filesEntity, 'id'>, { $roomId: number }>(`
+      SELECT id FROM files
+      WHERE message IN (SELECT message FROM pinned_messages WHERE room = $roomId)
+    `).all({ $roomId: this.id })
+    const filesBind = Utils.bindSqliteArray(files.map(x => x.id))
+    await db.query<null, { $expiry: number }>(`
+      UPDATE files SET expiry = uploaded + $expiry WHERE id IN (${filesBind.k})
+    `).run({
+      $expiry: getConfig().expiry * 60 * 60 * 24,
+      ...filesBind.v,
+    })
+    const results = await db.query<{ 'COUNT(*)': number }, { $roomId: number }>(`
+      SELECT COUNT(*) FROM pinned_messages WHERE room = $roomId
+    `).get({ $roomId: this.id })
+    await db.query<null, { $roomId: number }>(`
+      DELETE FROM pinned_messages WHERE room = $roomId
+    `).run({ $roomId: this.id })
+    await this.refresh()
+    return results ? results['COUNT(*)'] : 0
   }
 }
 

@@ -45,7 +45,7 @@ TODO:
 - GET /inbox, /outbox
 - POST /inbox/\[sessionid\]
 - reactions
-- pinning
+- whispers
 
 ## Prerequisites
 
