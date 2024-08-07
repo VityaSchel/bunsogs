@@ -10,6 +10,9 @@ export async function getGlobalAdminsAndModerators() {
     SELECT * FROM users WHERE moderator
   `).all({})
   for (const row of rows) {
+    if(row.session_id.startsWith('ff')) {
+      continue
+    }
     if (row.admin) {
       admins.push(row)
     } else {

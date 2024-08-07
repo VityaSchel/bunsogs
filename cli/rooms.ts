@@ -91,6 +91,9 @@ export async function getRoomAdminsAndModerators(roomId: number) {
     ORDER BY session_id
   `).all({ $roomId: roomId })
   for(const row of rows) {
+    if (row.session_id.startsWith('ff')) {
+      continue
+    }
     if (!row.global_moderator) {
       if(row.admin) {
         admins.push(row)

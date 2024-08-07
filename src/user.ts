@@ -83,4 +83,42 @@ export class User {
     await db.query<null, { $userId: number }>('DELETE FROM user_ban_futures WHERE room IS NULL AND "user" = $userId')
       .run({ $userId: this.id })
   }
+
+  async setGlobalAdmin({ visible }: { visible: boolean }) {
+    await db.query<null, { $visible: boolean, $userId: number }>(`
+      UPDATE users
+      SET moderator = TRUE, visible_mod = $visible, admin = TRUE
+      WHERE id = $userId
+    `).run({ $visible: visible, $userId: this.id })
+    this.admin = true
+    this.moderator = true
+  }
+
+  async setGlobalModerator({ visible }: { visible: boolean }) {
+    await db.query<null, { $visible: boolean, $userId: number }>(`
+      UPDATE users
+      SET moderator = TRUE, visible_mod = $visible
+      WHERE id = $userId
+    `).run({ $visible: visible, $userId: this.id })
+    this.moderator = true
+  }
+
+  async removeGlobalAdmin() {
+    await db.query<null, { $userId: number }>(`
+      UPDATE users
+      SET admin = FALSE
+      WHERE id = $userId
+    `).run({ $userId: this.id })
+    this.admin = false
+    this.moderator = false
+  }
+
+  async removeGlobalModerator() {
+    await db.query<null, { $userId: number }>(`
+      UPDATE users
+      SET admin = FALSE, moderator = FALSE
+      WHERE id = $userId
+    `).run({ $userId: this.id })
+    this.moderator = false
+  }
 }

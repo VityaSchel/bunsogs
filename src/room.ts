@@ -157,6 +157,7 @@ export class Room {
         rateLimitInterval: room.rate_limit_interval ?? 5,
         rateLimitSize: room.rate_limit_size ?? 16
       }
+      this.infoUpdates = room.info_updates
     }
     const admins = new Set<User>(), moderators = new Set<User>(), hiddenAdmins = new Set<User>(), hiddenModerators = new Set<User>()
     for(const row of await this.getAdminsAndMods()) {
@@ -641,6 +642,68 @@ export class Room {
       WHERE room = $roomId AND "user" = $userId AND banned
     `).run({ $roomId: this.id, $userId: user.id })
     this._permissionsCache.delete(user.id)
+  }
+
+  async setAdmin({ user, visible }: {
+    user: User,
+    visible: boolean
+  }) {
+    await db.query<null, { $roomId: number, $userId: number, $visible: boolean }>(`
+      INSERT INTO user_permission_overrides
+          (room,
+          "user",
+          moderator,
+          admin,
+          visible_mod)
+      VALUES ($roomId, $userId, TRUE, TRUE, $visible)
+      ON CONFLICT (room, "user") DO UPDATE SET
+          moderator = excluded.moderator,
+          admin = excluded.admin,
+          visible_mod = excluded.visible_mod
+    `).run({ $roomId: this.id, $userId: user.id, $visible: visible })
+    this._permissionsCache.delete(user.id)
+    await this.refresh()
+  }
+
+  async setModerator({ user, visible }: {
+    user: User,
+    visible: boolean
+  }) {
+    await db.query<null, { $roomId: number, $userId: number, $visible: boolean }>(`
+      INSERT INTO user_permission_overrides
+          (room,
+          "user",
+          moderator,
+          visible_mod)
+      VALUES ($roomId, $userId, TRUE, $visible)
+      ON CONFLICT (room, "user") DO UPDATE SET
+          moderator = excluded.moderator,
+          visible_mod = excluded.visible_mod
+    `).run({ $roomId: this.id, $userId: user.id, $visible: visible })
+    this._permissionsCache.delete(user.id)
+    await this.refresh()
+  }
+
+  async removeModerator({ user }: {
+    user: User
+  }) {
+    await db.query<null, { $roomId: number, $userId: number }>(`
+      UPDATE user_permission_overrides
+      SET admin = FALSE, moderator = FALSE, visible_mod = TRUE
+      WHERE room = $roomId AND "user" = $userId
+    `).run({ $roomId: this.id, $userId: user.id })
+    await this.refresh()
+  }
+
+  async removeAdmin({ user }: {
+    user: User
+  }) {
+    await db.query<null, { $roomId: number, $userId: number }>(`
+      UPDATE user_permission_overrides
+      SET admin = FALSE
+      WHERE room = $roomId AND "user" = $userId
+    `).run({ $roomId: this.id, $userId: user.id })
+    await this.refresh()
   }
 }
 

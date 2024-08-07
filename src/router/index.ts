@@ -12,6 +12,7 @@ import { uploadFileToRoom } from '@/router/upload-file-to-room'
 import { retrieveFileInRoom } from '@/router/retrieve-file-in-room'
 import { banUser } from '@/router/ban-user'
 import { unbanUser } from '@/router/unban-user'
+import { appointModerator } from '@/router/appoint-moderator'
 
 export type SogsRequest = {
   endpoint: string
@@ -60,6 +61,8 @@ router.on('GET', '/room/:token/file/:file_id/:filename', retrieveFileInRoom)
 router.on('POST', '/user/:session_id/ban', banUser)
 // @ts-expect-error fmw expects a handler with a specific signature
 router.on('POST', '/user/:session_id/unban', unbanUser)
+// @ts-expect-error fmw expects a handler with a specific signature
+router.on('POST', '/user/:session_id/moderator', appointModerator)
 
 export async function handleIncomingRequest(req: SogsRequest): Promise<SogsResponse> {
   const supportedMethods = ['GET', 'POST', 'PUT', 'DELETE']
@@ -96,5 +99,6 @@ const routesMap: { [route: string]: (req: SogsRequest) => SogsResponse | Promise
   retrieveFileInRoom,
   deleteAllFromUser,
   banUser,
-  unbanUser
+  unbanUser,
+  appointModerator
 }

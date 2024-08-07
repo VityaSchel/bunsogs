@@ -1,11 +1,11 @@
-import { db } from '@/db'
-import { getServerKey } from '@/keypairs'
 import { mapRoomEntityToRoomInstance, Room } from '@/room'
 import type { SogsRequest, SogsResponse } from '@/router'
-import { type roomsEntity } from '@/schema'
 import { User } from '@/user'
-import { blindSessionId } from '@session.js/blinded-session-id'
 import { z } from 'zod'
+import { blindSessionId } from '@session.js/blinded-session-id'
+import { getServerKey } from '@/keypairs'
+import { db, getRoomsFromDb } from '@/db'
+import type { roomsEntity } from '@/schema'
 
 /**
   Appoints or removes a moderator or admin.
@@ -107,7 +107,7 @@ import { z } from 'zod'
 
   404 Not Found — if one or more of the given `rooms` tokens do not exist.
  */
-export async function unbanUser(req: SogsRequest): Promise<SogsResponse> {
+export async function appointModerator(req: SogsRequest): Promise<SogsResponse> {
   const sessionIdParam = await z.string().regex(/^(05|15)[a-f0-9]+$/).length(66).safeParseAsync(req.params?.['session_id'])
   if (!sessionIdParam.success) {
     return { status: 400, response: null }
@@ -119,70 +119,161 @@ export async function unbanUser(req: SogsRequest): Promise<SogsResponse> {
   const user = new User({ sessionID: sessionId })
   await user.refresh()
 
-  if(req.user === null)  {
+  if (req.user === null) {
     return { status: 401, response: null }
   }
 
   const body = await z.object({
     rooms: z.array(z.string()).min(1).optional(),
-    global: z.boolean().optional()
-  })
-    .and(z.union([
-      z.object({ rooms: z.undefined(), global: z.boolean() }),
-      z.object({ rooms: z.array(z.string()).min(1), global: z.undefined() }),
-    ]))
-    .safeParseAsync(req.body)
+    global: z.boolean().optional(),
+    moderator: z.boolean().nullable().optional(),
+    admin: z.boolean().nullable().optional(),
+    visible: z.boolean().nullable().optional(),
+  }).safeParseAsync(req.body)
 
-  if(!body.success) {
+  if (!body.success) {
     return { status: 400, response: null }
   }
 
-  if(req.user.id == user.id) {
+  const globalValue = body.data.global === true ? true : null
+  const roomsValue = Array.isArray(body.data.rooms) ? body.data.rooms : null
+
+  if (globalValue && roomsValue) {
     return { status: 400, response: null }
   }
-  
-  if(body.data.rooms !== undefined) {
-    const rooms: Room[] = []
-    if(body.data.rooms![0] === '*') {
+  if(!globalValue && !roomsValue) {
+    return { status: 400, response: null }
+  }
+
+  if (req.user.id == user.id) {
+    return { status: 400, response: null }
+  }
+
+  let newAdminValue = body.data.admin === undefined ? null : body.data.admin
+  let newModeratorValue = body.data.moderator === undefined ? null : body.data.moderator
+
+  if (newAdminValue === null && newModeratorValue === null) {
+    return { status: 400, response: null }
+  }
+
+  if (newAdminValue === true && newModeratorValue === false) {
+    return { status: 400, response: null }
+  }
+
+  if(newAdminValue === true && newModeratorValue === true) {
+    newModeratorValue = null
+  }
+
+  if (newAdminValue === false && newModeratorValue === false) {
+    newAdminValue = null
+  }
+
+  let newVisibleValue = body.data.visible === undefined ? null : body.data.visible
+
+  const rooms: Room[] = []
+  if (roomsValue !== null) {
+    if (newVisibleValue === null) {
+      newVisibleValue = true
+    }
+    if (roomsValue![0] === '*') {
       const roomsEntities = await db.query<roomsEntity, { $user: number }>(`
         SELECT rooms.* FROM user_permissions perm JOIN rooms ON rooms.id = room
-        WHERE "user" = $user AND perm.moderator
+        WHERE "user" = $user AND perm.admin
       `).all({ $user: req.user.id })
       for (const roomEntity of roomsEntities) {
         const room = await mapRoomEntityToRoomInstance(roomEntity)
         rooms.push(room)
       }
     } else {
-      for (const roomToken of body.data.rooms) {
+      for (const roomToken of roomsValue) {
         const room = await db.query<roomsEntity, { $token: string }>(`
           SELECT * FROM rooms WHERE token = $token
         `).get({ $token: roomToken })
-        if(room === null) {
+        if (room === null) {
           return { status: 404, response: null }
         }
         rooms.push(await mapRoomEntityToRoomInstance(room))
       }
     }
+
     for (const room of rooms) {
       const reqUserPermissions = await room.getUserPermissions(req.user)
-      if (!req.user.admin && !req.user.moderator && !reqUserPermissions.admin && !reqUserPermissions.moderator) {
+      if (!req.user.admin && !reqUserPermissions.admin) {
         return { status: 403, response: null }
       }
-      await room.unbanUser({ user: user })
+      if(
+        (newAdminValue === true && newModeratorValue === null) ||
+        (newAdminValue === null && newModeratorValue === true)
+      ) {
+        if (newAdminValue === true) {
+          room.setAdmin({ user, visible: newVisibleValue })
+        } else {
+          room.setModerator({ user, visible: newVisibleValue })
+        }
+      } else if (
+        newAdminValue === null && newModeratorValue === false
+      ) {
+        room.removeModerator({ user })
+      } else if (
+        newAdminValue === false && newModeratorValue === null
+      ) {
+        room.removeAdmin({ user })
+      } else if (
+        newAdminValue === false && newModeratorValue === true
+      ) {
+        room.removeAdmin({ user })
+        room.setModerator({ user, visible: newVisibleValue })
+      }
     }
   } else {
-    if(req.user.admin || req.user.moderator) {
-      await user.unban()
-    } else {
+    const roomsEntities = await getRoomsFromDb()
+    for (const roomEntity of roomsEntities) {
+      const room = await mapRoomEntityToRoomInstance(roomEntity)
+      rooms.push(room)
+    }
+    if (newVisibleValue === null) {
+      newVisibleValue = false
+    }
+    if (!req.user.admin) {
       return {
         status: 403,
         response: null
       }
     }
+    if(
+      (newAdminValue === true && newModeratorValue === null) ||
+      (newAdminValue === null && newModeratorValue === true)
+    ) {
+      if(newAdminValue === true) {
+        user.setGlobalAdmin({ visible: newVisibleValue })
+      } else {
+        user.setGlobalModerator({ visible: newVisibleValue })
+      }
+    } else if (
+      newAdminValue === null && newModeratorValue === false
+    ) {
+      user.removeGlobalModerator()
+    } else if (
+      newAdminValue === false && newModeratorValue === null
+    ) {
+      user.removeGlobalAdmin()
+    } else if(
+      newAdminValue === false && newModeratorValue === true
+    ) {
+      user.removeGlobalAdmin()
+      user.setGlobalModerator({ visible: newVisibleValue })
+    }
+    for (const room of rooms) {
+      await room.refresh()
+    }
   }
 
   return {
     status: 200,
-    response: {}
+    response: {
+      info_updates: Object.fromEntries(
+        rooms.map(r => [r.token, r.infoUpdates])
+      )
+    }
   }
 }
