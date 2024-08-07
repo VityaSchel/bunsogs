@@ -13,6 +13,7 @@ import { auth } from '@/middlewares/auth'
 import { nonceUsed } from '@/nonce'
 import type { User } from '@/user'
 import { TextDecoder } from 'util'
+import { loadPlugins } from '@/plugins'
 
 if (process.env.NODE_ENV === 'development') {
   console.log()
@@ -24,6 +25,7 @@ console.log()
 const keys = await loadServerKey()
 const config = await loadConfig()
 const rooms = await loadRooms()
+const plugins = await loadPlugins()
 
 const port = process.env.PORT || config.port || 3000
 const hostname = process.env.HOSTNAME || config.hostname
@@ -253,6 +255,7 @@ const handleClearnetRequest = async (request: Request) => {
 
 console.log()
 console.log(`  SOGS started at ${chalk.bold(`${hostname}:${port}`)}`)
+if(plugins.length > 0) console.log(chalk.gray(`\n    ${plugins.length} plugin${plugins.length !== 1 ? 's' : ''} loaded`))
 console.log(`\n    Public links to rooms:${
   Array.from(rooms.values())
     .map(room => `\n      - ${

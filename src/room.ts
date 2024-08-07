@@ -1,6 +1,8 @@
 import { getConfig } from '@/config'
+import { decryptMessageData } from '@/crypto'
 import { db, getPinnedMessagesFromDb, getRoomAdminsAndModsFromDb, getRoomsFromDb } from '@/db'
 import { BadPermission, PostRateLimited } from '@/errors'
+import { requestPlugins } from '@/plugins'
 import { type filesEntity, type message_detailsEntity, type messagesEntity, type room_moderatorsEntity, type roomsEntity, type user_permissionsEntity, type usersEntity } from '@/schema'
 import { User } from '@/user'
 import * as Utils from '@/utils'
@@ -676,8 +678,17 @@ export class Room {
       whisperTo = null
     }
 
-    // TODO: filtering stuff (e.g. antispam)
-    const filtered = false
+    const messageContent = decryptMessageData(data.toString('base64'))
+    if (messageContent === null) {
+      throw new Error('Failed to decrypt message')
+    }
+    const results = await requestPlugins('onBeforePost', { 
+      message: {
+        text: messageContent.dataMessage?.body ?? null
+      }
+    })
+    const filtered = results.filter(v => v !== undefined)
+      .some(v => 'action' in v && v.action === 'reject')
 
     if(this.rateLimitSettings.rateLimitSize > 0 && !permissions.admin) {
       const sinceLimit = Date.now() - this.rateLimitSettings.rateLimitInterval * 1000

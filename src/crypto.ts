@@ -1,5 +1,6 @@
 import { deriveSymmetricKey, getServerKey } from '@/keypairs'
 import crypto from 'node:crypto'
+import { SignalService } from '@session.js/types/signal-bindings'
 
 export enum EncryptionType {
   xchacha20,
@@ -80,4 +81,26 @@ function encryptOpenSSL(algorithm: string, taglen: number, plain: Buffer, key: B
   }
 
   return Buffer.concat([iv, encrypted, tag])
+}
+
+export function decryptMessageData(messageData: string): null | SignalService.Content {
+  const makebuffer = (raw: string) => {
+    // CREDIT to oxen team
+    const b = Uint8Array.from(atob(raw), (v) => v.charCodeAt(0))
+    // This data is padded with a 0x80 delimiter followed by any number of 0x00 bytes, but these are
+    // *not* part of the protocol buffer encoding, so we need to strip it off.
+    let realLength = b.length
+    while (realLength > 0 && b[realLength - 1] == 0)
+      realLength--
+    if (realLength > 0 && b[realLength - 1] == 0x80)
+      realLength--
+    return b.subarray(0, realLength)
+  }
+
+  const data = makebuffer(messageData)
+  const err = SignalService.Content.verify(data)
+  if(err) {
+    return null
+  }
+  return SignalService.Content.decode(data)
 }

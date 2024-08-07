@@ -8,11 +8,11 @@ Aims to be very fast, flexible and extensible. Drop-in replacement for pysogs �
   - [Core features and comparison table](#core-features-and-comparison-table)
   - [Prerequisites](#prerequisites)
   - [Install](#install)
-  - [Plugins Configuration](#plugins-configuration)
-    - [Profanity filter](#profanity-filter)
-    - [Alphabet filter](#alphabet-filter)
-    - [Antispam](#antispam)
-    - [Greeting DM messages](#greeting-dm-messages)
+  - [Plugins](#plugins)
+    - [Profanity \& topic moderation filter](#profanity--topic-moderation-filter)
+    - [Antispam \[in development\]](#antispam-in-development)
+    - [Anticsam \[in development\]](#anticsam-in-development)
+    - [Greeting DM messages \[in development\]](#greeting-dm-messages-in-development)
   - [Migration from official pysogs](#migration-from-official-pysogs)
   - [CLI](#cli)
     - [CLI Options](#cli-options)
@@ -30,7 +30,7 @@ Aims to be very fast, flexible and extensible. Drop-in replacement for pysogs �
 
 | Feature                                                     | pysogs (official) | bunsogs |
 | ----------------------------------------------------------- | ----------------- | ------- |
-| Plugins (antispam, anticsam, DM greetings)                  | ❌                | Planned |
+| Plugins (antispam, anticsam, DM greetings)                  | ❌                | ✅ |
 | Bot API                                                     | ❌                | Planned |
 | GUI CLI                                                     | ❌                | ✅      |
 | Per-room rate limit settings                                | ❌                | ✅      |
@@ -41,9 +41,6 @@ Aims to be very fast, flexible and extensible. Drop-in replacement for pysogs �
 
 And it can be installed anywhere, not just Ubuntu 22 :)
 
-TODO:
-- reactions
-
 ## Prerequisites
 
 You will need a Linux server with a static IP address and a CPU modern enough to support [bun](https://bun.sh). You can use tunnels like [ngrok](https://ngrok.com/) to temporarily host your sogs without owning server or public ip.
@@ -51,6 +48,8 @@ You will need a Linux server with a static IP address and a CPU modern enough to
 This implementation is not intended to be end server, but rather a local webserver. You will need to configure, for example, nginx proxy server, to handle requests and redirect them to this server.
 
 ## Install
+
+In future, I'm planning to compile bunsogs to a single executable that can be run without installing bun or dependencies, so you could just download one file and run it anywhere right away.
 
 1. Clone this repository into some folder
   ```
@@ -84,31 +83,41 @@ You can run as many bunsogs on your machine as you want, just make sure they're 
 
 To add rooms see [CLI](#cli) section.
 
-## Plugins Configuration
+## Plugins
 
 Plugins are community developed extensible scripts for your SOGS. Below are four plugins maintained by author of the bunsogs. You may install plugins from other developers, but be aware that they will have access to your machine, your sogs (and potentially other sogs on the same machine, if user running this sogs have access to other directories), your networks and database. They are essentially a JavaScript files that can modify behaviour of bunsogs.
 
-To install a plugin, simply download and put it in plugins/ directory. Each plugin has its config, so check that in config.json in plugin's directory and edit if needed.
+To install a plugin, simply download and put it in plugins/ directory. Each plugin has its config, so check that in config.json in plugin's directory and edit if needed. After installation you have to enable the plugin in each room you want to use it in and restart SOGS.
 
-(Plugins are in development)
+### Profanity & topic moderation filter
 
-### Profanity filter
+Profanity filter plugin analyzes incoming messages for bad words and potentially inappropriate content. It has two modes: 
+- simple — checks for common words and abbrevations, this will filter out messages with specific words
+- AI mode — makes request to GPT moderation endpoint, this won't filter out messages based on profanity, but instead focuses on restricting certain topics (configurable)
 
-In progress
+[Read more](https://github.com/VityaSchel/bunsogs-profanity-filter)
 
-### Alphabet filter
+### Antispam \[in development\]
 
-In progress
+Antispam plugin efficiently protects your SOGS from spam (ads, links, scam) and flood (repetetive messages). It works by matching content along several messages instead of restricting single session ID.
 
-### Antispam
+[Read more](https://github.com/VityaSchel/bunsogs-antispam)
 
-In progress
+### Anticsam \[in development\]
 
-### Greeting DM messages
+Anticsam (anti children sexual abuse material) plugin aims to restrict people who try to send these kind of media to your SOGS. It primarily specifies in dealing with media files, not text content, which can likely be detected by profanity filter's AI mode or antispam plugins. It works by matching known hashes of such materials, which is shared with external API.
 
-In progress
+[Read more](https://github.com/VityaSchel/bunsogs-anticsam)
+
+### Greeting DM messages \[in development\]
+
+Autogreeting messages plugin sends new people in SOGS a welcoming message. It supports captcha verification out of box.
+
+[Read more](https://github.com/VityaSchel/bunsogs-auto-greetings)
 
 ## Migration from official pysogs
+
+Migration is in testing. Please do not consider this production ready. Of course, always keep backup of original pysogs instance to come back anytime.
 
 1. Install bunsogs using steps 1-4 from How to install section (including configuring sogs.conf)
 2. Move sogs.db from pysogs to root directory of bunsogs and rename it to db.sqlite3
@@ -208,6 +217,8 @@ Everything is stored inside db.sqlite3 and uploads directory. Periodically copy 
 Remember: you can always switch room to read-only mode in room's general settings in bunsogs-cli
 
 ### How to disable DMs?
+
+IN DEVELOPMENT!
 
 1. Run `bunsogs-cli`
 2. Go to Rooms
