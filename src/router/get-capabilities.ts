@@ -6,7 +6,7 @@ export function getCapabilities(): SogsResponse {
     response: {
       'capabilities': [
         'blind',
-        // 'reactions',
+        'reactions',
         'sogs'
       ]
     },

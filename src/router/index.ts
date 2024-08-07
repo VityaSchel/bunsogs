@@ -22,6 +22,10 @@ import { getDmOutbox } from '@/router/dm/get-outbox'
 import { getDmOutboxSince } from '@/router/dm/get-outbox-since'
 import { sendDmMessage } from '@/router/dm/send-message'
 import { deleteDmInbox } from '@/router/dm/delete-inbox'
+import { addReaction } from '@/router/add-reaction'
+import { deleteReaction } from '@/router/delete-reaction'
+import { deleteAllMessageReactions } from '@/router/delete-all-message-reactions'
+import { getMessageReactionReactors } from '@/router/get-message-reaction-reactors'
 
 export type SogsRequest = {
   endpoint: string
@@ -90,6 +94,16 @@ router.on('GET', '/outbox/since/:message_id', getDmOutboxSince)
 router.on('POST', '/inbox/:session_id', sendDmMessage)
 // @ts-expect-error fmw expects a handler with a specific signature
 router.on('DELETE', '/inbox', deleteDmInbox)
+// @ts-expect-error fmw expects a handler with a specific signature
+router.on('PUT', '/room/:token/reaction/:message_id/:reaction', addReaction)
+// @ts-expect-error fmw expects a handler with a specific signature
+router.on('DELETE', '/room/:token/reaction/:message_id/:reaction', deleteReaction)
+// @ts-expect-error fmw expects a handler with a specific signature
+router.on('DELETE', '/room/:token/reactions/:message_id', deleteAllMessageReactions)
+// @ts-expect-error fmw expects a handler with a specific signature
+router.on('DELETE', '/room/:token/reactions/:message_id/:reaction', deleteAllMessageReactions)
+// @ts-expect-error fmw expects a handler with a specific signature
+router.on('GET', '/room/:token/reactors/:message_id/:reaction', getMessageReactionReactors)
 
 export async function handleIncomingRequest(req: SogsRequest): Promise<SogsResponse> {
   const supportedMethods = ['GET', 'POST', 'PUT', 'DELETE']
@@ -136,5 +150,9 @@ const routesMap: { [route: string]: (req: SogsRequest) => SogsResponse | Promise
   getDmOutbox,
   getDmOutboxSince,
   sendDmMessage,
-  deleteDmInbox
+  deleteDmInbox,
+  addReaction,
+  deleteReaction,
+  deleteAllMessageReactions,
+  getMessageReactionReactors,
 }

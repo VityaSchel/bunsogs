@@ -1,7 +1,7 @@
 import { getConfig } from '@/config'
 import { db, getPinnedMessagesFromDb, getRoomAdminsAndModsFromDb, getRoomsFromDb } from '@/db'
 import { BadPermission, PostRateLimited } from '@/errors'
-import { type filesEntity, type message_detailsEntity, type messagesEntity, type room_moderatorsEntity, type roomsEntity, type user_permissionsEntity } from '@/schema'
+import { type filesEntity, type message_detailsEntity, type messagesEntity, type room_moderatorsEntity, type roomsEntity, type user_permissionsEntity, type usersEntity } from '@/schema'
 import { User } from '@/user'
 import * as Utils from '@/utils'
 
@@ -245,8 +245,180 @@ export class Room {
     user: User | null, 
     reactorLimit: number, 
     options?: { sessionIds?: true }
-  ): Promise<Map<number, { [key: string]: any }>> {
-    return new Map()
+  ): Promise<{ [key: number]: { [key: string]: any } }> {
+    if (messageIds.length === 0) {
+      return {}
+    }
+
+    const reacts: { [key: number]: { [key: string]: { count: number, index: number, you?: boolean, reactors?: (number | string)[] } } } = {}
+    const selectYou = user !== null
+      ? 'EXISTS(SELECT * FROM user_reactions WHERE reaction = r.id AND "user" = $userId) AS you'
+      : 'FALSE AS you'
+    const messagesBind = Utils.bindSqliteArray(messageIds)
+
+    const rows = await db.query<{ id: number, message: number, reaction: string, react_count: number, you: any }, { $userId?: number }>(`
+      SELECT
+        id,
+        message,
+        reaction,
+        (SELECT COUNT(*) FROM user_reactions WHERE reaction = r.id) AS react_count,
+        ${selectYou}
+      FROM reactions r
+      WHERE message IN (${messagesBind.k})
+      ORDER BY id
+    `).all({ 
+      ...messagesBind.v,
+      ...(user !== null && { $userId: user.id })
+    })
+    for (const row of rows) {
+      const {
+        id: reactid,
+        message: msgid,
+        reaction: react,
+        react_count: count,
+        you
+      } = row
+      reacts[msgid] ??= {}
+      reacts[msgid][react] ??= { 
+        count: count, 
+        index: Object.keys(reacts[msgid]).length 
+      }
+      if (you) {
+        reacts[msgid][react].you = true
+      }
+      const selectReactors = (
+        options?.sessionIds
+          ? `SELECT reaction, session_id
+              FROM first_reactors JOIN users ON first_reactors."user" = users.id
+            `
+          : 'SELECT reaction, "user" FROM first_reactors '
+      ) + 'WHERE reaction = $reactid AND _order <= $maxOrder ORDER BY at'
+      const rows = await db.query<{ reaction: number } & ({ session_id: string } | { user: number }), { $reactid?: number, $maxOrder?: number }>(selectReactors)
+        .all({
+          $reactid: reactid,
+          $maxOrder: reactorLimit
+        })
+      for (const row of rows) {
+        reacts[msgid][react].reactors ??= []
+        reacts[msgid][react].reactors!.push('user' in row ? row.user : row.session_id)
+      }
+    }
+
+    return reacts
+  }
+
+  /**
+    Adds a reaction to the given post.  Returns True if the reaction was added, False if the
+    reaction by this user was already present, throws on other errors.
+
+    SOGS requires that reactions be from 1 to 12 unicode characters long (throws InvalidData()
+    if not satisfied).
+
+    The post must exist in the room (throws NoSuchPost if it does not).
+
+    The user must have read permission in the room (throws BadPermission if not).
+
+    Returns a tuple of: bool indicating whether adding was successful (False = reaction already
+    present), and the new message seqno value.
+   */
+  async addReaction({ user, messageId, reaction }: {
+    user: User,
+    messageId: number,
+    reaction: string
+  }) {
+    if(!this.isRegularMessage(messageId)) {
+      throw new Error('Invalid MessageId')
+    }
+
+    let added = false
+    try {
+      await db.query<null, { $messageId: number, $reaction: string, $user: number }>(`
+        INSERT INTO message_reactions (message, reaction, "user")
+        VALUES ($messageId, $reaction, $user)
+      `).run({ $messageId: messageId, $reaction: reaction, $user: user.id })
+      added = true
+    } catch {false}
+    const row = await db.query<{ seqno: number }, { $messageId: number }>(`
+      SELECT seqno FROM messages WHERE id = $messageId
+    `).get({ $messageId: messageId })
+    if(row === null) {
+      throw new Error('Failed to add reaction')
+    }
+    return { added, seqno: row.seqno }
+  }
+
+  async removeReaction({ user, messageId, reaction }: {
+    user: User,
+    messageId: number,
+    reaction: string
+  }) {
+    let removed = false
+    try {
+      await db.query<null, { $messageId: number, $reaction: string, $userId: number }>(`
+        DELETE FROM user_reactions
+        WHERE reaction = (SELECT id FROM reactions WHERE message = $messageId AND reaction = $reaction)
+          AND "user" = $userId
+      `).run({ $messageId: messageId, $reaction: reaction, $userId: user.id })
+      removed = true
+    } catch {false}
+    const row = await db.query<{ seqno: number }, { $messageId: number }>(`
+      SELECT seqno FROM messages WHERE id = :msg
+    `).get({ $messageId: messageId })
+    if(row === null) {
+      throw new Error('Failed to remove reaction')
+    }
+    return { seqno: row.seqno, removed }
+  }
+
+  async removeAllReactions({ messageId, reaction }: {
+    messageId: number,
+    reaction?: string
+  }) {
+    const results = await db.query<{ 'COUNT(*)': number }, { $messageId: number, $reaction?: string }>(`
+      SELECT COUNT(*) FROM user_reactions WHERE
+        reaction IN (SELECT id FROM reactions WHERE
+            message = $messageId
+            ${reaction ? 'AND reaction = $reaction' : ''})
+    `).get({
+      $messageId: messageId,
+      ...(reaction && { $reaction: reaction })
+    })
+    await db.query<null, { $messageId: number, $reaction?: string }>(`
+      DELETE FROM user_reactions WHERE
+        reaction IN (SELECT id FROM reactions WHERE
+            message = $messageId
+            ${reaction ? 'AND reaction = $reaction' : ''})
+    `).run({
+      $messageId: messageId,
+      ...(reaction && { $reaction: reaction })
+    })
+    const row = await db.query<{ seqno: number }, { $messageId: number }>(`
+      SELECT seqno FROM messages WHERE id = $messageId
+    `).get({ $messageId: messageId })
+    if(row === null) {
+      throw new Error('Failed to remove reaction')
+    }
+    return { seqno: row.seqno, removed: results?.['COUNT(*)'] ?? 0 }
+  }
+
+  async getReactors({ messageId, reaction, sessionIds, limit }: {
+    messageId: number,
+    reaction: string,
+    sessionIds: boolean,
+    limit?: number
+  }) {
+    const reactors = await db.query<({ session_id: string } | { user: number }) & { at: number }, { $messageId: number, $reaction: string }>(
+      (sessionIds 
+        ? 'SELECT session_id, at FROM message_reactions r JOIN users ON r.user = users.id'
+        : 'SELECT "user", at FROM message_reactions r')
+      + ' WHERE r.message = $messageId AND r.reaction = $reaction ORDER BY at'
+      + (limit ? ' LIMIT $limit' : '')
+    ).all({
+      $messageId: messageId,
+      $reaction: reaction,
+      ...(limit && { $limit: limit })
+    })
+    return reactors.map(x => ['user' in x ? x.user : x.session_id, x.at])
   }
 
   /**
@@ -294,9 +466,10 @@ export class Room {
     { before: number } |
     { recent: boolean } |
     { single: number },
-  { limit, reactorLimit, reactions }: { 
+  { limit, reactorLimit, reactionsUpdates, reactions = true }: { 
     limit: number, 
     reactorLimit: number,
+    reactionsUpdates?: boolean,
     reactions?: boolean
   }) {
     const mod = user === null 
@@ -317,7 +490,7 @@ export class Room {
     const notDeletedClause = 'sequence' in options
       ? 'AND (data IS NOT NULL OR seqno_creation <= $sequence)'
       : 'AND data IS NOT NULL'
-    const messageClause = 'sequence' in options && !('reaction_updates' in options)
+    const messageClause = 'sequence' in options && !reactionsUpdates
       ? 'AND seqno > $sequence AND seqno_data > $sequence'
       : 'sequence' in options
         ? 'AND seqno > $sequence'
@@ -361,7 +534,7 @@ export class Room {
       ${messageClause}
       ${whisperClause}
       ${orderLimit}`
-    ).all({ 
+    ).all({
       $roomId: this.id,
       ...('sequence' in options && { $sequence: options.sequence }),
       ...('after' in options && { $after: options.after }),
@@ -422,15 +595,15 @@ export class Room {
       const reacts = await this.getReactions(
         // Fetch reactions for messages, but skip deleted messages (that have data set to an
         // explicit None) since we already know they don't have reactions.
-        msgs.filter(x => 'data' in x && x['data'] !== null)
+        msgs.filter(x => !('data' in x) || x['data'] !== null)
           .map(x => x['id']),
         user,
         reactorLimit,
         { sessionIds: true },
       )
       for(const msg of msgs) {
-        if(!('data' in msg) || msg['data']) {
-          msg['reactions'] = reacts.get(msg['id']) ?? {}
+        if(!('data' in msg) || msg['data'] !== null) {
+          msg['reactions'] = reacts[msg['id']] ?? {}
         }
       }
     }

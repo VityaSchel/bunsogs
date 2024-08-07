@@ -53,7 +53,7 @@ export async function getRoomMessagesSince(req: SogsRequest): Promise<SogsRespon
     req.user, 
     { sequence: sinceSequenceNumber }, 
     { 
-      reactions: eventTypes.includes('r'),
+      reactionsUpdates: eventTypes.includes('r'),
       reactorLimit: query.data.reactors, 
       limit: query.data.limit 
     }
