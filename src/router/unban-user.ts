@@ -117,7 +117,7 @@ export async function unbanUser(req: SogsRequest): Promise<SogsResponse> {
     : sessionIdParam.data
 
   const user = new User({ sessionID: sessionId })
-  await user.refresh()
+  await user.refresh({ autovivify: true })
 
   if(req.user === null)  {
     return { status: 401, response: null }

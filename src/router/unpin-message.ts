@@ -58,7 +58,7 @@ export async function unpinMessage(req: SogsRequest): Promise<SogsResponse> {
     room.updateUserActivity(req.user)
   }
 
-  const pinnedMessageId = z.number().int().nonnegative().parse(req.params?.['message_id'])
+  const pinnedMessageId = z.number().int().nonnegative().parse(Number(req.params?.['message_id']))
   
   await room.unpin({ messageId: pinnedMessageId })
 

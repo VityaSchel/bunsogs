@@ -16,6 +16,12 @@ import { appointModerator } from '@/router/appoint-moderator'
 import { pinMessage } from '@/router/pin-message'
 import { unpinMessage } from '@/router/unpin-message'
 import { unpinAllMessages } from '@/router/unpin-all-messages'
+import { getDmInbox } from '@/router/dm/get-inbox'
+import { getDmInboxSince } from '@/router/dm/get-inbox-since'
+import { getDmOutbox } from '@/router/dm/get-outbox'
+import { getDmOutboxSince } from '@/router/dm/get-outbox-since'
+import { sendDmMessage } from '@/router/dm/send-message'
+import { deleteDmInbox } from '@/router/dm/delete-inbox'
 
 export type SogsRequest = {
   endpoint: string
@@ -72,6 +78,18 @@ router.on('POST', '/room/:token/pin/:message_id', pinMessage)
 router.on('POST', '/room/:token/unpin/all', unpinAllMessages)
 // @ts-expect-error fmw expects a handler with a specific signature
 router.on('POST', '/room/:token/unpin/:message_id', unpinMessage)
+// @ts-expect-error fmw expects a handler with a specific signature
+router.on('GET', '/inbox', getDmInbox)
+// @ts-expect-error fmw expects a handler with a specific signature
+router.on('GET', '/inbox/since/:message_id', getDmInboxSince)
+// @ts-expect-error fmw expects a handler with a specific signature
+router.on('GET', '/outbox', getDmOutbox)
+// @ts-expect-error fmw expects a handler with a specific signature
+router.on('GET', '/outbox/since/:message_id', getDmOutboxSince)
+// @ts-expect-error fmw expects a handler with a specific signature
+router.on('POST', '/inbox/:session_id', sendDmMessage)
+// @ts-expect-error fmw expects a handler with a specific signature
+router.on('DELETE', '/inbox', deleteDmInbox)
 
 export async function handleIncomingRequest(req: SogsRequest): Promise<SogsResponse> {
   const supportedMethods = ['GET', 'POST', 'PUT', 'DELETE']
@@ -109,5 +127,14 @@ const routesMap: { [route: string]: (req: SogsRequest) => SogsResponse | Promise
   deleteAllFromUser,
   banUser,
   unbanUser,
-  appointModerator
+  appointModerator,
+  pinMessage,
+  unpinMessage,
+  unpinAllMessages,
+  getDmInbox,
+  getDmInboxSince,
+  getDmOutbox,
+  getDmOutboxSince,
+  sendDmMessage,
+  deleteDmInbox
 }

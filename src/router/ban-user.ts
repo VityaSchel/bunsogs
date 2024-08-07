@@ -71,7 +71,7 @@ export async function banUser(req: SogsRequest): Promise<SogsResponse> {
     : sessionIdParam.data
 
   const user = new User({ sessionID: sessionId })
-  await user.refresh()
+  await user.refresh({ autovivify: true })
 
   if(req.user === null)  {
     return { status: 401, response: null }
@@ -89,7 +89,6 @@ export async function banUser(req: SogsRequest): Promise<SogsResponse> {
     .safeParseAsync(req.body)
 
   if(!body.success) {
-    console.log(req.body)
     return { status: 400, response: null }
   }
 

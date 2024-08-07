@@ -13,6 +13,7 @@ const configSchema = z.object({
   active_threshold: z.number().int().min(1),
   active_prune_threshold: z.number().int().min(1),
   history_prune_threshold: z.number().int().min(1),
+  dm_expiry: z.number().int().min(0),
 })
 
 export type Config = z.infer<typeof configSchema>

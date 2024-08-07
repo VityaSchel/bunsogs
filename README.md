@@ -42,10 +42,7 @@ Aims to be very fast, flexible and extensible. Drop-in replacement for pysogs â€
 And it can be installed anywhere, not just Ubuntu 22 :)
 
 TODO:
-- GET /inbox, /outbox
-- POST /inbox/\[sessionid\]
 - reactions
-- whispers
 
 ## Prerequisites
 

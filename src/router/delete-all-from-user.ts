@@ -32,7 +32,7 @@ export async function deleteAllFromUser(req: SogsRequest): Promise<SogsResponse>
   }
 
   const user = new User({ sessionID: sessionId })
-  await user.refresh()
+  await user.refresh({ autovivify: true })
   if (!user) {
     return { status: 404, response: null }
   }
