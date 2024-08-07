@@ -2,7 +2,7 @@
 
 Session Open Group Server implementation written in JavaScript using [bun.sh](https://bun.sh)
 
-Aims to be very fast, flexible and extensible. Drop-in replacement for pysogs — works with the same database schema.
+Aims to be very fast, flexible and extensible. Drop-in replacement for pysogs — works with the same database schema. Bunsogs support everything pysogs has, but it's better.
 
 - [Bun SOGS](#bun-sogs)
   - [Core features and comparison table](#core-features-and-comparison-table)
@@ -40,6 +40,12 @@ Aims to be very fast, flexible and extensible. Drop-in replacement for pysogs �
 |                                                             |                   |         |
 
 And it can be installed anywhere, not just Ubuntu 22 :)
+
+TODO:
+- POST /user/\[sessionid\]/moderator
+- GET /inbox, /outbox
+- POST /inbox/\[sessionid\]
+- reactions
 
 ## Prerequisites
 

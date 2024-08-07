@@ -7,8 +7,11 @@ import { getRoomRecentMessages } from '@/router/get-room-recent-messages'
 import { getRoomMessagesSince } from '@/router/get-room-messages-since'
 import { postRoomMessage } from '@/router/post-room-message'
 import { deleteRoomMessage } from '@/router/delete-room-message'
+import { deleteAllFromUser } from '@/router/delete-all-from-user'
 import { uploadFileToRoom } from '@/router/upload-file-to-room'
 import { retrieveFileInRoom } from '@/router/retrieve-file-in-room'
+import { banUser } from '@/router/ban-user'
+import { unbanUser } from '@/router/unban-user'
 
 export type SogsRequest = {
   endpoint: string
@@ -38,6 +41,8 @@ router.on('GET', '/room/:token', getRoom)
 // @ts-expect-error fmw expects a handler with a specific signature
 router.on('GET', '/room/:token/pollInfo/:info_updates', getRoomUpdates)
 // @ts-expect-error fmw expects a handler with a specific signature
+router.on('DELETE', '/room/:token/all/:session_id', deleteAllFromUser)
+// @ts-expect-error fmw expects a handler with a specific signature
 router.on('GET', '/room/:token/messages/recent', getRoomRecentMessages)
 // @ts-expect-error fmw expects a handler with a specific signature
 router.on('GET', '/room/:token/messages/since/:since_seqno', getRoomMessagesSince)
@@ -51,6 +56,10 @@ router.on('POST', '/room/:token/file', uploadFileToRoom)
 router.on('GET', '/room/:token/file/:file_id', retrieveFileInRoom)
 // @ts-expect-error fmw expects a handler with a specific signature
 router.on('GET', '/room/:token/file/:file_id/:filename', retrieveFileInRoom)
+// @ts-expect-error fmw expects a handler with a specific signature
+router.on('POST', '/user/:session_id/ban', banUser)
+// @ts-expect-error fmw expects a handler with a specific signature
+router.on('POST', '/user/:session_id/unban', unbanUser)
 
 export async function handleIncomingRequest(req: SogsRequest): Promise<SogsResponse> {
   const supportedMethods = ['GET', 'POST', 'PUT', 'DELETE']
@@ -84,5 +93,8 @@ const routesMap: { [route: string]: (req: SogsRequest) => SogsResponse | Promise
   postRoomMessage,
   deleteRoomMessage,
   uploadFileToRoom,
-  retrieveFileInRoom
+  retrieveFileInRoom,
+  deleteAllFromUser,
+  banUser,
+  unbanUser
 }

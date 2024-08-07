@@ -180,7 +180,8 @@ const handleOnionRequest = async (payloadDeserialized: Omit<SogsRequest, 'user'>
     endpoint: z.string(),
     method: z.string(),
     headers: z.record(z.string(), z.union([z.string(), z.number().transform(String)])).optional(),
-    body: z.any().optional()
+    body: z.any().optional(),
+    json: z.any().optional()
   }).safeParseAsync(payloadDeserialized)
 
   if (!payload.success) {
@@ -193,7 +194,7 @@ const handleOnionRequest = async (payloadDeserialized: Omit<SogsRequest, 'user'>
   const { status, response, headers, contentType } = await handleIncomingRequest({
     endpoint: payload.data.endpoint,
     method: payload.data.method,
-    body: payload.data.body || null,
+    body: (payload.data.json ?? payload.data.body) || null,
     headers: payload.data.headers,
     user
   })

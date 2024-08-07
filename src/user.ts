@@ -60,4 +60,27 @@ export class User {
     this.sessionID = userDb.session_id
     this.id = userDb.id
   }
+
+  async ban({ timeout }: {
+    timeout: number | undefined
+  }) {
+    await db.query<null, { $userId: number }>('UPDATE users SET banned = TRUE WHERE id = $userId')
+      .run({ $userId: this.id })
+    await db.query<null, { $userId: number }>('DELETE FROM user_ban_futures WHERE room IS NULL AND "user" = $userId')
+      .run({ $userId: this.id })
+    if (timeout !== undefined) {
+      await db.query<null, { $userId: number, $at: number }>(`
+        INSERT INTO user_ban_futures
+        ("user", room, banned, at) VALUES ($userId, NULL, FALSE, $at)
+      `)
+        .run({ $userId: this.id, $at: timeout })
+    }
+  }
+
+  async unban() {
+    await db.query<null, { $userId: number }>('UPDATE users SET banned = FALSE WHERE id = $userId')
+      .run({ $userId: this.id })
+    await db.query<null, { $userId: number }>('DELETE FROM user_ban_futures WHERE room IS NULL AND "user" = $userId')
+      .run({ $userId: this.id })
+  }
 }

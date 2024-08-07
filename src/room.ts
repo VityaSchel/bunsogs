@@ -600,48 +600,57 @@ export class Room {
       throw new BadPermission()
     }
   }
+
+  async deleteAllFromUser(
+    user: User
+  ) {
+    const ids = await db.query<Pick<message_detailsEntity, 'id'>, { $roomId: number, $user: number }>(`
+      SELECT id FROM messages WHERE room = $roomId AND "user" = $user AND data IS NOT NULL
+    `).all({ $roomId: this.id, $user: user.id })
+    await db.query<Pick<message_detailsEntity, 'id'>, { $roomId: number, $user: number }>(`
+      DELETE FROM message_details WHERE room = $roomId AND "user" = $user
+    `).all({ $roomId: this.id, $user: user.id })
+    await db.query<Pick<message_detailsEntity, 'id'>, { $roomId: number, $user: number }>(`
+      UPDATE files SET expiry = 0.0 WHERE room = $roomId AND uploader = $user
+    `).all({ $roomId: this.id, $user: user.id })
+    return ids
+  }
+
+  async banUser({ user, timeout }: { user: User, timeout: number | undefined }) {
+    await db.query<null, { $roomId: number, $userId: number }>(`
+      INSERT INTO user_permission_overrides (room, "user", banned, moderator, admin)
+          VALUES ($roomId, $userId, TRUE, FALSE, FALSE)
+      ON CONFLICT (room, "user") DO
+          UPDATE SET banned = TRUE, moderator = FALSE, admin = FALSE
+    `).run({ $roomId: this.id, $userId: user.id })
+    await db.query<null, { $roomId: number, $userId: number }>(`
+      DELETE FROM user_ban_futures WHERE room = $roomId AND "user" = $userId
+    `).run({ $roomId: this.id, $userId: user.id })
+    if(timeout !== undefined) {
+      await db.query<null, { $roomId: number, $userId: number, $at: number }>(`
+        INSERT INTO user_ban_futures
+        (room, "user", banned, at) VALUES ($roomId, $userId, FALSE, $at)
+      `).run({ $roomId: this.id, $userId: user.id, $at: timeout })
+    }
+    this._permissionsCache.delete(user.id)
+  }
+
+  async unbanUser({ user }: { user: User }) {
+    await db.query<null, { $roomId: number, $userId: number }>(`
+      UPDATE user_permission_overrides SET banned = FALSE
+      WHERE room = $roomId AND "user" = $userId AND banned
+    `).run({ $roomId: this.id, $userId: user.id })
+    this._permissionsCache.delete(user.id)
+  }
 }
 
 let rooms: Map<Room['token'], Room> = new Map()
 export async function loadRooms() {
-  const config = getConfig()
   const roomsDb = await getRoomsFromDb()
-
   rooms = new Map()
   
   for (const roomDb of roomsDb) {
-    const { 
-      admins, 
-      moderators, 
-      hiddenAdmins,
-      hiddenModerators 
-    } = await getRoomAdminsAndModsFromDb(roomDb.id)
-    const room = new Room(
-      roomDb.id,
-      roomDb.token,
-      roomDb.active_users ?? 0,
-      config.active_threshold * 24 * 60 * 60,
-      roomDb.name,
-      roomDb.description,
-      roomDb.info_updates ?? 0,
-      roomDb.message_sequence ?? 0,
-      Math.floor(roomDb.created * 1000),
-      await getPinnedMessagesFromDb(roomDb.id),
-      moderators,
-      admins,
-      Boolean(roomDb.read),
-      Boolean(roomDb.accessible),
-      Boolean(roomDb.write),
-      Boolean(roomDb.upload),
-      roomDb.image,
-      hiddenModerators,
-      hiddenAdmins,
-      {
-        rateLimitSize: roomDb.rate_limit_size ?? 5,
-        rateLimitInterval: roomDb.rate_limit_interval ?? 16.0
-      }
-    )
-    await room.refresh()
+    const room = await mapRoomEntityToRoomInstance(roomDb)
     rooms.set(roomDb.token, room)
   }
 
@@ -650,4 +659,41 @@ export async function loadRooms() {
 
 export function getRooms() {
   return rooms
+}
+
+export async function mapRoomEntityToRoomInstance(roomDb: roomsEntity) {
+  const config = getConfig()
+  const {
+    admins,
+    moderators,
+    hiddenAdmins,
+    hiddenModerators
+  } = await getRoomAdminsAndModsFromDb(roomDb.id)
+  const room = new Room(
+    roomDb.id,
+    roomDb.token,
+    roomDb.active_users ?? 0,
+    config.active_threshold * 24 * 60 * 60,
+    roomDb.name,
+    roomDb.description,
+    roomDb.info_updates ?? 0,
+    roomDb.message_sequence ?? 0,
+    Math.floor(roomDb.created * 1000),
+    await getPinnedMessagesFromDb(roomDb.id),
+    moderators,
+    admins,
+    Boolean(roomDb.read),
+    Boolean(roomDb.accessible),
+    Boolean(roomDb.write),
+    Boolean(roomDb.upload),
+    roomDb.image,
+    hiddenModerators,
+    hiddenAdmins,
+    {
+      rateLimitSize: roomDb.rate_limit_size ?? 5,
+      rateLimitInterval: roomDb.rate_limit_interval ?? 16.0
+    }
+  )
+  await room.refresh()
+  return room
 }
