@@ -14,6 +14,7 @@ import { nonceUsed } from '@/nonce'
 import type { User } from '@/user'
 import { TextDecoder } from 'util'
 import { loadPlugins } from '@/plugins'
+import packageJson from '../package.json'
 
 if (process.env.NODE_ENV === 'development') {
   console.log()
@@ -254,14 +255,19 @@ const handleClearnetRequest = async (request: Request) => {
 }
 
 console.log()
-console.log(`  SOGS started at ${chalk.bold(`${hostname}:${port}`)}`)
+console.log(`  Bunsogs v${packageJson.version}`)
 if(plugins.length > 0) console.log(chalk.gray(`\n    ${plugins.length} plugin${plugins.length !== 1 ? 's' : ''} loaded`))
-console.log(`\n    Public links to rooms:${
-  Array.from(rooms.values())
-    .map(room => `\n      - ${
-      chalk.bold(`http://${hostname}:${port}/${room.token}?public_key=${keys.publicKey.toString('hex')}`)}`
-    ).join('')
-}`)
+console.log(`\n  SOGS started at ${chalk.bold(`${hostname}:${port}`)}`)
+const roomsList = Array.from(rooms.values())
+console.log(
+  roomsList.length 
+    ? `\n    Public links to rooms:${
+      roomsList.map(room => `\n      - ${
+        chalk.bold(`http://${hostname}:${port}/${room.token}?public_key=${keys.publicKey.toString('hex')}`)}`
+      ).join('')
+    }`
+    : chalk.bold('    You have no public rooms yet. Create your first room with bunsogs-cli!')
+)
 console.log()
 console.log()
 

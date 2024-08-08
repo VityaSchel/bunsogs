@@ -9,7 +9,7 @@ import chalk from 'chalk'
 const plugins: { name: string, worker: Worker }[] = []
 
 export async function loadPlugins() {
-  const pluginsManifests = await glob(path.join(__dirname, '../plugins/*/package.json'))
+  const pluginsManifests = await glob('./plugins/*/package.json')
   for (const manifest of pluginsManifests) {
     const packageJsonSerialized = await fs.readFile(manifest, 'utf-8')
     const packageJson = SJSON.parse(packageJsonSerialized)

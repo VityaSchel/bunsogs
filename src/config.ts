@@ -20,22 +20,22 @@ export type Config = z.infer<typeof configSchema>
 let config: Config
 export async function loadConfig() {
   try {
-    await fs.access(__dirname + '/../sogs.conf', fs.constants.F_OK)
+    await fs.access('./sogs.conf', fs.constants.F_OK)
   } catch {
-    console.error(chalk.bold(chalk.red('  [!] Failed to find sogs.conf [!]')))
-    console.error(chalk.red('  Looks like you\'re missing sogs.conf file.'))
-    console.error(chalk.red('  Please download it here:'))
+    console.error(chalk.bold(chalk.red('  [!] Failed to find ./sogs.conf [!]')))
+    console.error(chalk.red('  Looks like you\'re missing sogs.conf file in current working directory.'))
+    console.error(chalk.red('  Here is a template for you:'))
     console.error(chalk.bold(chalk.red('  https://github.com/VityaSchel/bunsogs/tree/main/sogs.conf')))
-    console.error(chalk.red('  and put it in the same directory as SOGS.'))
+    console.error(chalk.red('  download it and put it in the same directory as SOGS.'))
     console.log()
     process.exit(0)
   }
 
   let configContents: string
   try {
-    configContents = await fs.readFile(__dirname + '/../sogs.conf', 'utf-8')
+    configContents = await fs.readFile('./sogs.conf', 'utf-8')
   } catch {
-    console.error(chalk.bold(chalk.red('  [!] Failed to read sogs.conf [!]')))
+    console.error(chalk.bold(chalk.red('  [!] Failed to read ./sogs.conf [!]')))
     console.error(chalk.red('  File can be seen but cannot be read.'))
     console.error(chalk.red('  Please check file permissions.'))
     console.log()

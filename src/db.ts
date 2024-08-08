@@ -1,21 +1,28 @@
 /* eslint-disable quotes */
 import { Database } from 'bun:sqlite'
-import { dirname } from 'path'
-import { fileURLToPath } from 'url'
-import { migrate, getMigrations, getDatabaseVersion } from 'bun-sqlite-migrations'
+import { migrate, type Migration, parseSqlContent } from 'bun-sqlite-migrations'
 import type { pinned_messagesEntity, room_moderatorsEntity, roomsEntity, usersEntity } from '@/schema'
 import { getServerKey } from '@/keypairs'
+import { file } from 'bun'
+// @ts-expect-error - Importing SQL files
+import initMigration from './migrations/init/init_pysogs_schema.sql' with { type: 'file' }
+// @ts-expect-error - Importing SQL files
+import migration1 from './migrations/updates/0001_rooms_rate_limit_settings.sql' with { type: 'file' }
 
-const __dirname = dirname(fileURLToPath(import.meta.url)) + '/'
-
-export const db = new Database(__dirname + '../db.sqlite3', { create: true })
+export const db = new Database('./db.sqlite3', { create: true })
 const newDatabase = await db.query('SELECT name FROM sqlite_master WHERE type="table"').all().length === 0
 
-const migrations = getMigrations(__dirname + '../migrations/updates')
-migrations.forEach(migration => migration.version += 1)
+const migrationsSql: string[] = [
+  await file(migration1).text()
+]
 if (newDatabase) {
-  migrations.unshift(getMigrations(__dirname + '../migrations/init')[0])
+  migrationsSql.unshift(await file(initMigration).text())
 }
+const migrations: Migration[] = migrationsSql.map((sql, i) => ({
+  down: '',
+  up: parseSqlContent(sql),
+  version: newDatabase ? i + 1 : i + 2
+}))
 migrate(db, migrations)
 
 const getUserQuery = await db.query<usersEntity, { $id: number }>('SELECT session_id FROM users WHERE id = :id')

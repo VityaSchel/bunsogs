@@ -63,7 +63,7 @@ export async function loadServerKey() {
 
     let keyfileExists = false
     try {
-      await fs.access(__dirname + '/../key_x25519', fs.constants.F_OK)
+      await fs.access('./key_x25519', fs.constants.F_OK)
       keyfileExists = true
     } catch {
       keyfileExists = false
@@ -73,7 +73,7 @@ export async function loadServerKey() {
     if (keyfileExists) {
       let secretKey: Buffer
       try {
-        secretKey = await fs.readFile(__dirname + '/../key_x25519')
+        secretKey = await fs.readFile('./key_x25519')
       } catch(e) {
         console.error(chalk.bold(chalk.red('  [!] Failed to read key_x25519 [!]')))
         console.error(chalk.red('  File can be seen but cannot be read.'))
@@ -108,7 +108,7 @@ export async function loadServerKey() {
 
     if (generatedNewKey) {
       try {
-        await fs.writeFile(__dirname + '/../key_x25519', keypair.secretKey, { mode: 0o444 })
+        await fs.writeFile('./key_x25519', keypair.secretKey, { mode: 0o444 })
         console.log('  > Generated SOGS key and saved to ./key_x25519')
       } catch(e) {
         console.error(chalk.bold(chalk.red('  [!] Can\'t write new SOGS key to ./key_x25519 [!]')))

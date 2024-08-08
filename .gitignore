@@ -8,3 +8,5 @@ uploads/*
 plugins/*
 !plugins/.gitkeep
 key_x25519
+releases/*
+!releases/.gitkeep
