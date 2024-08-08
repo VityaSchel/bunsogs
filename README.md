@@ -5,7 +5,7 @@ Session Open Group Server implementation written in JavaScript using [bun.sh](ht
 Aims to be very fast, flexible and extensible. Drop-in replacement for pysogs — works with the same database schema. Bunsogs support everything pysogs has, but it's better.
 
 - [Bun SOGS](#bun-sogs)
-  - [Core features and comparison table](#core-features-and-comparison-table)
+  - [Features](#features)
   - [Prerequisites](#prerequisites)
   - [Install](#install)
   - [Plugins](#plugins)
@@ -26,7 +26,7 @@ Aims to be very fast, flexible and extensible. Drop-in replacement for pysogs �
   - [Caveats](#caveats)
   - [Credits](#credits)
 
-## Core features and comparison table
+## Features
 
 | Feature                                                     | pysogs (official) | bunsogs |
 | ----------------------------------------------------------- | ----------------- | ------- |
@@ -41,6 +41,19 @@ Aims to be very fast, flexible and extensible. Drop-in replacement for pysogs �
 
 And it can be installed anywhere, not just Ubuntu 22 :)
 
+| OS/cpu                                  | Pysogs | bunsogs | tested? |
+| --------------------------------------- | ------ | ------- | ------- |
+| Ubuntu 20                               | ❓     | ✅      | No      |
+| Ubuntu 22                               | ✅     | ✅      | Yes     |
+| Ubuntu 24                               | ❌     | ✅      | Yes     |
+| MacOS arm                               | ❌     | ✅      | Yes     |
+| MacOS x64                               | ❌     | ✅      | No      |
+| Other linux distros with CPUs pre-2013  | ❌     | ✅      | No      |
+| Other linux distros with CPUs post-2013 | ❌     | ✅      | No      |
+|                                         |        |         |         |
+
+If you run bunsogs successfully on any untested platform, make sure to [tell me](mailto:bunsogs@hloth.dev) and I will update this table.
+
 ## Prerequisites
 
 You will need a Linux server with a static IP address and a CPU modern enough to support [bun](https://bun.sh). You can use tunnels like [ngrok](https://ngrok.com/) to temporarily host your sogs without owning server or public ip.
@@ -49,39 +62,25 @@ This implementation is not intended to be end server, but rather a local webserv
 
 ## Install
 
-Follow this easy method of installing and configuring bunsogs
+Follow this easy method of installing and configuring bunsogs:
 
-1. Open releases page
-  ```
-  git clone https://github.com/VityaSchel/bunsogs
-  ```
-1. Optionally edit `sogs.conf` file with any editor. It's a text file with global settings. You can find explanation of each setting inside of it. You may skip this step if you're not expert in configuring SOGS servers. Rooms are created and configured with bunsogs-cli, not with config.
-2. Install [Bun](https://bun.sh/)
-  Linux/macOS:
-  ```
-  curl -fsSL https://bun.sh/install | bash
-  ```
-  Windows:
-  ```
-  powershell -c "irm bun.sh/install.ps1 | iex"
-  ```
-1. Install dependencies:
-  ```
-  bun install
-  ```
-  ***P.S. unlike weird python, dependencies will be installed inside node_modules directory INSIDE of bunsogs directory, and not at the system level, so you don't have to manage environments***
-  
-Finally, start your SOGS:
-```
-bun start
-```
-Use this command whenever you want to start server, others are just preparations. Keep in mind that you have to be in the bunsogs directory. You can use `PORT=1234 bun start` and/or `HOSTNAME=192.168.0.1` environmental variables to **override** sogs.config variables for PORT and HOSTNAME
+1. Go to [releases page](https://github.com/VityaSchel/bunsogs/releases)
+2. Download zip for your OS
+3. Unpack zip, open terminal, go to bunsogs directory with unpacked content
+4. Optionally edit `sogs.conf` file with any editor. It's a text file with global settings. You can find explanation of each setting inside of it. You may skip this step if you're not expert in configuring SOGS servers. Rooms are created and configured with bunsogs-cli, not with config.
+5. Finally run your SOGS by typing `./bunsogs` in bunsogs directory. First time you run it, you should see a message indicating that a secret keypair was created and database was initialized. After that run `./bunsogs-cli` to manage your rooms and SOGS. [Read more about CLI in its section](#cli).
 
-It is your job to configure web server to proxy requests to the specified URL. To leave SOGS running, you can use any persisting daemon you like. For example, to use [pm2](https://www.npmjs.com/package/pm2), install it like this: `bun install -g pm2` and to start daemon, use `pm2 start "bun start" --name="My Session Community"` (provide any name you like), also run `pm2 startup` to add pm2 to system autoruns. Don't forget to increase file size limit from default 1mb if configuring nginx reverse proxy.
+Alternatively, [run source code](./CONTRIBUTING.md#running-source-code), it's not that hard 🙃
+
+**Always start bunsogs by typing command in bunsogs directory**, otherwise you'll get errors like `Failed to find ./sogs.conf`
+ 
+You can use `PORT=1234` and/or `HOSTNAME=192.168.0.1` environmental variables to **override** sogs.conf variables for PORT and HOSTNAME.
+
+It is your job to configure web server to proxy requests to the specified URL. Bunsogs never tries to be end server for your users. It is highly recommended to run some kind of reverse proxy, such as nginx, that will point to local bunsogs instance. Don't forget to [increase file size limit from default 1mb](https://stackoverflow.com/questions/28476643/default-nginx-client-max-body-size) if configuring nginx reverse proxy.
+
+To leave SOGS running, you can use any persisting daemon you like, it can be just a [crontab script](https://phoenixnap.com/kb/crontab-reboot) that starts bunsogs on server restart or Linux's [screen](https://www.howtogeek.com/662422/how-to-use-linuxs-screen-command/) or more complicated [pm2](https://www.npmjs.com/package/pm2) (for example use `pm2 start "bun start" --name="My Session Community"` provide any name you like, also run `pm2 startup` to add pm2 to system autoruns). 
 
 You can run as many bunsogs on your machine as you want, just make sure they're on different ports and each instance runs in its own directory.
-
-To add rooms see [CLI](#cli) section.
 
 ## Plugins
 
@@ -117,7 +116,7 @@ Autogreeting messages plugin sends new people in SOGS a welcoming message. It su
 
 ## Migration from official pysogs
 
-Migration is in testing. Please do not consider this production ready. Of course, always keep backup of original pysogs instance to come back anytime.
+Migration is experimental feature. Please do not consider this production ready. Of course, always keep backup of original pysogs instance to come back anytime.
 
 1. Install bunsogs using steps 1-4 from How to install section (including configuring sogs.conf)
 2. Move sogs.db from pysogs to root directory of bunsogs and rename it to db.sqlite3
@@ -129,14 +128,14 @@ Migration is in testing. Please do not consider this production ready. Of course
 
 To add or manage rooms list and settings, admins, moderators, bans, use bunsogs-cli. You can utilize command line interface to manage your bunsogs in two ways:
 
-1. Interactive, human-friendly, **recommended** (i.e. just type `bunsogs-cli` and hit enter)
+1. Interactive, human-friendly, **recommended** (i.e. just type `./bunsogs-cli` and hit enter)
   - You will be presented with a graphic interface that you can navigate using keyboard arrows
   - Demo:
   - ![bunsogs-cli interactive mode demo gif](https://r2.hloth.dev/bunsogs-demo.gif)
-2. With arguments, for automation (e.g. `bunsogs-cli --add-room bun --name "Bun.sh lovers"`)
+2. With arguments, for automation (e.g. `./bunsogs-cli --add-room bun --name "Bun.sh lovers"`)
   - You can pass options to CLI to automate things, because it will simply run the process, output result and exit, you may skip any confirmation prompts with `-y` argument
 
-In any case you should run CLI in the target bunsogs directory. But if you're advanced user, you can configure bunsogs to run from anywhere: add cli directory to your PATH variable (on most OSes, you should run `echo "export PATH=\$PATH:$(pwd)/cli" >> ${HOME}/.$(basename $SHELL)rc && source ${HOME}/.$(basename $SHELL)rc`), then each time you run `bunsogs-cli` command, pass `BUNSOGS_DIR` environment variable with path to targeting bunsogs's root directory with db.sqlite3 and key_x25519.
+In any case you must run CLI in the target bunsogs directory.
 
 ### CLI Options
 

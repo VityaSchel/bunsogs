@@ -1,5 +1,6 @@
 import { db } from '@/db'
 import type { usersEntity } from '@/schema'
+import { SQLiteError } from 'bun:sqlite'
 
 export class User {
   id = -1
@@ -38,8 +39,17 @@ export class User {
         userDb = result
       } else {
         if (sessionID && options?.autovivify) {
-          userDb = await db.query<usersEntity, { $id: string }>('INSERT INTO users (session_id) VALUES ($id) RETURNING *')
-            .get({ $id: sessionID }) as usersEntity
+          try {
+            userDb = await db.query<usersEntity, { $id: string }>('INSERT INTO users (session_id) VALUES ($id) RETURNING *')
+              .get({ $id: sessionID }) as usersEntity
+          } catch(e) {
+            if (e instanceof SQLiteError && e.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+              userDb = await db.query<usersEntity, { $sessionID: string }>('SELECT * FROM users WHERE session_id = $sessionID')
+                .get({ $sessionID: sessionID })!
+            } else {
+              throw e
+            }
+          }
         } else {
           throw new Error('User not found')
         }
@@ -51,10 +61,10 @@ export class User {
       userDb = result
     }
 
-    this.admin = userDb.admin
-    this.moderator = userDb.moderator
-    this.visibleMod = userDb.visible_mod
-    this.banned = userDb.banned
+    this.admin = userDb.admin ? true : false
+    this.moderator = userDb.moderator ? true : false
+    this.visibleMod = userDb.visible_mod ? true : false
+    this.banned = userDb.banned ? true : false
     this.created = userDb.created
     this.lastActive = userDb.last_active
     this.sessionID = userDb.session_id

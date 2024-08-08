@@ -29,6 +29,14 @@ export async function loadPlugins() {
       continue
     }
     const worker = new Worker(entryPoint, { type: 'module' })
+    worker.addEventListener('error', e => {
+      console.error(chalk.bgRedBright(chalk.white(`Plugin ${packageJson.name} error:`)), chalk.redBright(e.toString()))
+    })
+    worker.addEventListener('message', e => {
+      if(e.data.type === 'log') {
+        console.log(chalk.bgWhiteBright(chalk.black(`Plugin ${packageJson.name}:`)), chalk.white(e.data.message))
+      }
+    })
     plugins.push({
       name: packageJson.name,
       worker

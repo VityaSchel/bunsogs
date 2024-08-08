@@ -41,7 +41,7 @@ function decryptOpenSSL(cipherName: string, tagLength: number, ciphertext: Buffe
   const decipher = crypto.createDecipheriv(cipherName, key, iv) as crypto.DecipherCCM
   decipher.setAuthTag(tag)
 
-  // Decrypt the ciphertext
+  // .final() will throw `Unsupported state or unable to authenticate data` if user provides bad public key
   const decrypted = decipher.update(ciphertext)
   return Buffer.concat([decrypted, decipher.final()])
 }

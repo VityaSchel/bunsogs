@@ -99,3 +99,19 @@ response.data = {
 ```
 
 **How it works with multiple plugins?** If any of plugins return `reject` — the message is rejected, otherwise it is sent as normal.
+
+## Logging and debugging
+
+Use postMessage with `{ type: 'log', message: 'any string you like' }` to log messages to operator's console.
+
+For example (plugin code):
+
+```ts
+postMessage({ type: 'log', message: profanityWords.size + ' words loaded' })
+```
+
+Bunsogs console:
+
+```
+Plugin bunsogs-profanity-filter: 4499 words loaded
+```
