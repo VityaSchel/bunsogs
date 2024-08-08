@@ -684,7 +684,13 @@ export class Room {
     }
     const results = await requestPlugins('onBeforePost', { 
       message: {
-        text: messageContent.dataMessage?.body ?? null
+        text: messageContent.dataMessage?.body ?? null,
+        author: {
+          session_id: user.sessionID,
+          admin: user.admin,
+          moderator: user.moderator,
+          roomPermissions: this.getUserPermissions(user)
+        }
       }
     })
     const filtered = results.filter(v => v !== undefined)

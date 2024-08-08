@@ -49,7 +49,53 @@ Called when new message is posted to the SOGS.
 
 Payload:
 `message` — object with message content
+- `text` — text content of message
+- `author` — author of the message
+  - `session_id` — blinded Session ID of author, starting with `15`; blinded session ids are different among sogs
+  - `admin` — is global admin
+  - `moderator` — is global moderator
+  - `roomPermissions` — permissions in current room
+    - `banned` - is user banned in current room
+    - `read` - can user read messages
+    - `accessible` - can user access room
+    - `write` - can user post messages to this room
+    - `upload` - can user upload files to this room
+    - `moderator` - is user room's moderator
+    - `admin` - is user room's admin
 
-You should return `send` property where `send` means allow to send and `reject` means reject request to send.
+Example payload:
+```js
+event.data.payload = {
+  message: {
+    author: {
+      session_id: '15383d0a3ba605abe3b5b7343102be3fc0026056b9812e06f6daee3be62a6a56e3',
+      admin: false,
+      moderator: false,
+      roomPermissions: {
+        banned: false,
+        read: true,
+        accessible: true,
+        write: true,
+        upload: true,
+        moderator: true,
+        admin: false
+      }
+    }
+    text: 'Foo bar'
+  }
+}
+```
+
+You should return `action` property where `send` means allow to send and `reject` means reject request to send.
+
+Example response:
+
+```js
+response.data = {
+  ok: true,
+  action: 'reject',
+  ref: event.data.ref
+}
+```
 
 **How it works with multiple plugins?** If any of plugins return `reject` — the message is rejected, otherwise it is sent as normal.

@@ -91,9 +91,9 @@ To install a plugin, simply download and put it in plugins/ directory. Each plug
 
 ### Profanity & topic moderation filter
 
-Profanity filter plugin analyzes incoming messages for bad words and potentially inappropriate content. It has two modes: 
+Profanity filter plugin analyzes incoming messages for bad words and potentially inappropriate content. It has two modes which can work simultaniously: 
 - simple — checks for common words and abbrevations, this will filter out messages with specific words
-- AI mode — makes request to GPT moderation endpoint, this won't filter out messages based on profanity, but instead focuses on restricting certain topics (configurable)
+- GPT mode — makes request to GPT moderation endpoint, this won't filter out messages based on profanity, but instead focuses on restricting certain topics (configurable)
 
 [Read more](https://github.com/VityaSchel/bunsogs-profanity-filter)
 
