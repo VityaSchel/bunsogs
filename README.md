@@ -49,14 +49,14 @@ This implementation is not intended to be end server, but rather a local webserv
 
 ## Install
 
-In future, I'm planning to compile bunsogs to a single executable that can be run without installing bun or dependencies, so you could just download one file and run it anywhere right away.
+Follow this easy method of installing and configuring bunsogs
 
-1. Clone this repository into some folder
+1. Open releases page
   ```
   git clone https://github.com/VityaSchel/bunsogs
   ```
-2. Optionally edit `sogs.conf` file with any editor. It's a text file with global settings. You can find explanation of each setting inside of it. You may skip this step if you're not expert in configuring SOGS servers. Rooms are created and configured with bunsogs-cli, not with config.
-3. Install [Bun](https://bun.sh/)
+1. Optionally edit `sogs.conf` file with any editor. It's a text file with global settings. You can find explanation of each setting inside of it. You may skip this step if you're not expert in configuring SOGS servers. Rooms are created and configured with bunsogs-cli, not with config.
+2. Install [Bun](https://bun.sh/)
   Linux/macOS:
   ```
   curl -fsSL https://bun.sh/install | bash
@@ -65,7 +65,7 @@ In future, I'm planning to compile bunsogs to a single executable that can be ru
   ```
   powershell -c "irm bun.sh/install.ps1 | iex"
   ```
-4. Install dependencies:
+1. Install dependencies:
   ```
   bun install
   ```
@@ -205,7 +205,7 @@ Note the difference between `+` and `*`: passing `+` to room means add global mo
 
 ### Where is data stored?
 
-Everything is stored inside db.sqlite3 and uploads directory. Periodically copy it in some safe place. Key is stored in key_x25519 file, backup it once.
+Everything is stored inside db.sqlite3 and uploads directory. Make regular copies of it in some safe place. Key is stored in key_x25519 file, backup it once.
 
 ### How to create a public broadcasting channel (readonly room)?
 
@@ -214,7 +214,7 @@ Everything is stored inside db.sqlite3 and uploads directory. Periodically copy 
 3. Enter new room's token, display name, optional description
 4. Select Read-only in room's type
 
-Remember: you can always switch room to read-only mode in room's general settings in bunsogs-cli
+Remember: you can always switch room to read-only mode and other modes in room's general settings in bunsogs-cli. This is essentially room's default permissions, same as in pysogs.
 
 ### How to disable DMs?
 
@@ -252,9 +252,6 @@ If you ever want to restore this user's permissions, simply repeat process until
 
 ## Known issues
 
-- Blinded IDs are not supported in CLI
-  - Everywhere we accept input, it's Session ID, not blinded ID
-  - Possible solution is to either allow to input blinded IDs or create a tool that easily resolves session ids <-> blinded ids
 - You can only add one admin/moderator, ban only one user per time
   - We should allow multiple inputs in Session ID fields using `list` type from prompts library
 

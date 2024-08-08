@@ -4,8 +4,8 @@
   "module": "src/index.ts",
   "type": "module",
   "scripts": {
-    "dev": "NODE_ENV=development bun src/index.ts",
-    "start": "NODE_ENV=production bun src/index.ts",
+    "dev": "BUNSOGS_DEV=true bun src/index.ts",
+    "start": "bun src/index.ts",
     "build-sql-defs": "sql-ts -c sql-ts-conf.json",
     "bunsogs-cli": "bun ./cli/bunsogs-cli.ts",
     "compile": "rm -rf releases && bun run compile:darwin:arm && bun run compile:darwin:x64 && bun run compile:linux:arm && bun run compile:linux:x64 && bun run compile:windows && bun run compile:cli:darwin:arm && bun run compile:cli:darwin:x64 && bun run compile:cli:linux:arm && bun run compile:cli:linux:x64 && bun run compile:cli:windows && bun run pack",
@@ -19,7 +19,8 @@
     "compile:cli:linux:arm": "bun build cli/bunsogs-cli.ts --compile --outfile=releases/linux_arm/bunsogs/bunsogs-cli --target=bun-linux-arm64 --minify",
     "compile:cli:linux:x64": "bun build cli/bunsogs-cli.ts --compile --outfile=releases/linux_x64/bunsogs/bunsogs-cli --target=bun-linux-x64 --minify",
     "compile:cli:windows": "bun build cli/bunsogs-cli.ts --compile --outfile=releases/windows_x64/bunsogs/bunsogs-cli --target=bun-windows-x64 --minify",
-    "pack": "cd releases/darwin_arm/ && zip -r ../macos_arm_m1_silicon.zip bunsogs && cd ../../ && cd releases/darwin_x64/ && zip -r ../macos_x64_intel.zip bunsogs && cd ../../ && cd releases/linux_arm/ && zip -r ../linux_arm.zip bunsogs && cd ../../ && cd releases/linux_x64/ && zip -r ../linux_x64.zip bunsogs && cd ../../ && cd releases/windows_x64/ && zip -r ../windows_x64.zip bunsogs && cd ../../"
+    "pack": "cd releases/darwin_arm/ && zip -r ../macos_arm_m1_silicon.zip bunsogs && cd ../../ && cd releases/darwin_x64/ && zip -r ../macos_x64_intel.zip bunsogs && cd ../../ && cd releases/linux_arm/ && zip -r ../linux_arm.zip bunsogs && cd ../../ && cd releases/linux_x64/ && zip -r ../linux_x64.zip bunsogs && cd ../../ && cd releases/windows_x64/ && zip -r ../windows_x64.zip bunsogs && cd ../../",
+    "compile:dev": "rm releases/darwin_arm/bunsogs/bunsogs && bun build src/index.ts --compile --outfile=releases/darwin_arm/bunsogs/bunsogs --target=bun-darwin-arm64 --minify --sourcemap"
   },
   "workspaces": [
     "cli/*"
@@ -45,11 +46,11 @@
     "bencode": "^4.0.0",
     "bun-sqlite-migrations": "^1.0.2",
     "chalk": "^5.3.0",
-    "find-my-way": "^8.2.0",
     "glob": "^11.0.0",
     "libsodium-wrappers": "^0.7.13",
     "libsodium-wrappers-sumo": "^0.7.13",
     "lodash": "^4.17.21",
+    "path-to-regexp": "^7.1.0",
     "secure-json-parse": "^2.7.0",
     "tweetnacl": "^1.0.3",
     "uuid": "^10.0.0",

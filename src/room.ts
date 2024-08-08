@@ -689,7 +689,7 @@ export class Room {
           session_id: user.sessionID,
           admin: user.admin,
           moderator: user.moderator,
-          roomPermissions: this.getUserPermissions(user)
+          roomPermissions: await this.getUserPermissions(user)
         }
       }
     })

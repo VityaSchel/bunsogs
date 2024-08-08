@@ -72,7 +72,7 @@ export async function auth({ method, endpoint, headers, body }: {
     )
 
     if (!signatureMatches) {
-      if(process.env.NODE_ENV === 'development') {
+      if (process.env.BUNSOGS_DEV === 'true') {
         console.error('Request signature does not match. Expected:', computedSignature)
       }
       throw new Error('Invalid signature')

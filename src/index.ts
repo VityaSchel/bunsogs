@@ -16,7 +16,7 @@ import { TextDecoder } from 'util'
 import { loadPlugins } from '@/plugins'
 import packageJson from '../package.json'
 
-if (process.env.NODE_ENV === 'development') {
+if (process.env.BUNSOGS_DEV === 'true') {
   console.log()
   console.warn(chalk.bgYellow(chalk.black('You\'re running bunsogs in development mode which will produce a lot of unwanted logs for bunsogs developers. Make sure you\'re running `bun start`, not `bun run dev`')))
 }
@@ -34,6 +34,7 @@ const hostname = process.env.HOSTNAME || config.hostname
 Bun.serve({
   port,
   hostname,
+  development: process.env.BUNSOGS_DEV === 'true',
   async fetch(request: Request) {
     try {
       const endpoint = new URL(request.url).pathname
@@ -43,7 +44,7 @@ Bun.serve({
         return await handleClearnetRequest(request)
       }
     } catch(e) {
-      if(process.env.NODE_ENV === 'development') {
+      if (process.env.BUNSOGS_DEV === 'true') {
         console.error(e)
         throw e
       } else {
@@ -63,7 +64,9 @@ const handleOnionConnection = async (request: Request) => {
     ? Object.fromEntries(Object.entries(payloadMetadata.headers).map(([k,v]) => [k.toLowerCase(), v])) as Record<string, string>
     : {}
 
-  console.log('Request:', new TextDecoder('utf-8').decode(payloadDecoded[0]), 'body:', payloadBody?.subarray(0, 50).toString('utf-8') + '...')
+  if(process.env.BUNSOGS_DEV === 'true') {
+    console.log('Request:', new TextDecoder('utf-8').decode(payloadDecoded[0]), 'body:', payloadBody?.subarray(0, 50).toString('utf-8') + '...')
+  }
 
   const isBatchRequest = typeof payloadMetadata === 'object' &&
     'endpoint' in payloadMetadata &&
@@ -121,7 +124,7 @@ const handleOnionConnection = async (request: Request) => {
     }
   }
 
-  if (process.env.NODE_ENV === 'development') {
+  if (process.env.BUNSOGS_DEV === 'true') {
     console.log('Responded with', status, responseBody) // TODO: remove
   }
 
@@ -169,7 +172,7 @@ const handleBatchOnionRequest = async ({ metadata, body, batchEndpoint }: { meta
       )
       return { code: status, body: response, headers: { 'content-type': contentType, ...responseHeaders } }
     } catch(e) {
-      if(process.env.NODE_ENV === 'development') {
+      if (process.env.BUNSOGS_DEV === 'true') {
         console.error(e)
       }
       return { body: null, status: 500 }
@@ -188,7 +191,7 @@ const handleOnionRequest = async (payloadDeserialized: Omit<SogsRequest, 'user'>
   }).safeParseAsync(payloadDeserialized)
 
   if (!payload.success) {
-    if(process.env.NODE_ENV === 'development') {
+    if (process.env.BUNSOGS_DEV === 'true') {
       console.error('Error while parsing onion request body', payload.error)
     }
     return { body: null, status: 400 }

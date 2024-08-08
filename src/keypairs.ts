@@ -136,11 +136,13 @@ export async function loadServerKey() {
 async function createSystemUserIfNeeded() {
   const systemUser = await db.query<Pick<usersEntity, 'session_id'>, Record<string, never>>('SELECT session_id FROM users WHERE id = 0').get({})
   if (systemUser === null || !systemUser.session_id.startsWith('ff')) {
-    await db.query<null, { $sessionId: string }>(`
-      INSERT INTO users (id, session_id, moderator, admin, visible_mod)
-        VALUES (0, $sessionId, TRUE, TRUE, FALSE)
-      ON CONFLICT (id) DO UPDATE
-        SET session_id = $sessionId, moderator = TRUE, admin = TRUE, visible_mod = FALSE
-    `).run({ $sessionId: 'ff'+publicServerKey.toString('hex') })
+    try {
+      await db.query<null, { $sessionId: string }>(`
+        INSERT INTO users (id, session_id, moderator, admin, visible_mod)
+          VALUES (0, $sessionId, TRUE, TRUE, FALSE)
+        ON CONFLICT (id) DO UPDATE
+          SET session_id = $sessionId, moderator = TRUE, admin = TRUE, visible_mod = FALSE
+      `).run({ $sessionId: 'ff'+publicServerKey.toString('hex') })
+    } catch {false}
   }
 }

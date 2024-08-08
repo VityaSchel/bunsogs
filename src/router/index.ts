@@ -1,4 +1,3 @@
-import FindMyWay, { type HTTPMethod } from 'find-my-way'
 import type { User } from '@/user'
 import { getCapabilities } from '@/router/get-capabilities'
 import { getRoom } from '@/router/get-room'
@@ -26,12 +25,13 @@ import { addReaction } from '@/router/add-reaction'
 import { deleteReaction } from '@/router/delete-reaction'
 import { deleteAllMessageReactions } from '@/router/delete-all-message-reactions'
 import { getMessageReactionReactors } from '@/router/get-message-reaction-reactors'
+import { match } from 'path-to-regexp'
 
 export type SogsRequest = {
   endpoint: string
   method: string
   body: Buffer | null
-  params?: { [key: string]: string | undefined }
+  params?: Partial<Record<string, string | string[]>>
   headers?: { [key: string]: string }
   searchParams?: { [k: string]: string }
   user: User | null
@@ -44,66 +44,45 @@ export type SogsResponse = {
   headers?: Record<string, string>
 }
 
-const router = FindMyWay({
-  ignoreDuplicateSlashes: true,
-  ignoreTrailingSlash: true
-})
+type Route = { method: string, route: string, handler: (req: SogsRequest) => SogsResponse | Promise<SogsResponse> }
+const router: Route[] = []
 
-router.on('GET', '/capabilities', getCapabilities)
-// @ts-expect-error fmw expects a handler with a specific signature
-router.on('GET', '/room/:token', getRoom)
-// @ts-expect-error fmw expects a handler with a specific signature
-router.on('GET', '/room/:token/pollInfo/:info_updates', getRoomUpdates)
-// @ts-expect-error fmw expects a handler with a specific signature
-router.on('DELETE', '/room/:token/all/:session_id', deleteAllFromUser)
-// @ts-expect-error fmw expects a handler with a specific signature
-router.on('GET', '/room/:token/messages/recent', getRoomRecentMessages)
-// @ts-expect-error fmw expects a handler with a specific signature
-router.on('GET', '/room/:token/messages/since/:since_seqno', getRoomMessagesSince)
-// @ts-expect-error fmw expects a handler with a specific signature
-router.on('POST', '/room/:token/message', postRoomMessage)
-// @ts-expect-error fmw expects a handler with a specific signature
-router.on('DELETE', '/room/:token/message/:message_id', deleteRoomMessage)
-// @ts-expect-error fmw expects a handler with a specific signature
-router.on('POST', '/room/:token/file', uploadFileToRoom)
-// @ts-expect-error fmw expects a handler with a specific signature
-router.on('GET', '/room/:token/file/:file_id', retrieveFileInRoom)
-// @ts-expect-error fmw expects a handler with a specific signature
-router.on('GET', '/room/:token/file/:file_id/:filename', retrieveFileInRoom)
-// @ts-expect-error fmw expects a handler with a specific signature
-router.on('POST', '/user/:session_id/ban', banUser)
-// @ts-expect-error fmw expects a handler with a specific signature
-router.on('POST', '/user/:session_id/unban', unbanUser)
-// @ts-expect-error fmw expects a handler with a specific signature
-router.on('POST', '/user/:session_id/moderator', appointModerator)
-// @ts-expect-error fmw expects a handler with a specific signature
-router.on('POST', '/room/:token/pin/:message_id', pinMessage)
-// @ts-expect-error fmw expects a handler with a specific signature
-router.on('POST', '/room/:token/unpin/all', unpinAllMessages)
-// @ts-expect-error fmw expects a handler with a specific signature
-router.on('POST', '/room/:token/unpin/:message_id', unpinMessage)
-// @ts-expect-error fmw expects a handler with a specific signature
-router.on('GET', '/inbox', getDmInbox)
-// @ts-expect-error fmw expects a handler with a specific signature
-router.on('GET', '/inbox/since/:message_id', getDmInboxSince)
-// @ts-expect-error fmw expects a handler with a specific signature
-router.on('GET', '/outbox', getDmOutbox)
-// @ts-expect-error fmw expects a handler with a specific signature
-router.on('GET', '/outbox/since/:message_id', getDmOutboxSince)
-// @ts-expect-error fmw expects a handler with a specific signature
-router.on('POST', '/inbox/:session_id', sendDmMessage)
-// @ts-expect-error fmw expects a handler with a specific signature
-router.on('DELETE', '/inbox', deleteDmInbox)
-// @ts-expect-error fmw expects a handler with a specific signature
-router.on('PUT', '/room/:token/reaction/:message_id/:reaction', addReaction)
-// @ts-expect-error fmw expects a handler with a specific signature
-router.on('DELETE', '/room/:token/reaction/:message_id/:reaction', deleteReaction)
-// @ts-expect-error fmw expects a handler with a specific signature
-router.on('DELETE', '/room/:token/reactions/:message_id', deleteAllMessageReactions)
-// @ts-expect-error fmw expects a handler with a specific signature
-router.on('DELETE', '/room/:token/reactions/:message_id/:reaction', deleteAllMessageReactions)
-// @ts-expect-error fmw expects a handler with a specific signature
-router.on('GET', '/room/:token/reactors/:message_id/:reaction', getMessageReactionReactors)
+router.push({ method: 'GET', route: '/capabilities', handler: getCapabilities })
+router.push({ method: 'GET', route: '/room/:token', handler: getRoom })
+router.push({ method: 'GET', route: '/room/:token/pollInfo/:info_updates', handler: getRoomUpdates })
+router.push({ method: 'DELETE', route: '/room/:token/all/:session_id', handler: deleteAllFromUser })
+router.push({ method: 'GET', route: '/room/:token/messages/recent', handler: getRoomRecentMessages })
+router.push({ method: 'GET', route: '/room/:token/messages/since/:since_seqno', handler: getRoomMessagesSince })
+router.push({ method: 'POST', route: '/room/:token/message', handler: postRoomMessage })
+router.push({ method: 'DELETE', route: '/room/:token/message/:message_id', handler: deleteRoomMessage })
+router.push({ method: 'POST', route: '/room/:token/file', handler: uploadFileToRoom })
+router.push({ method: 'GET', route: '/room/:token/file/:file_id', handler: retrieveFileInRoom })
+router.push({ method: 'GET', route: '/room/:token/file/:file_id/:filename', handler: retrieveFileInRoom })
+router.push({ method: 'POST', route: '/user/:session_id/ban', handler: banUser })
+router.push({ method: 'POST', route: '/user/:session_id/unban', handler: unbanUser })
+router.push({ method: 'POST', route: '/user/:session_id/moderator', handler: appointModerator })
+router.push({ method: 'POST', route: '/room/:token/pin/:message_id', handler: pinMessage })
+router.push({ method: 'POST', route: '/room/:token/unpin/all', handler: unpinAllMessages })
+router.push({ method: 'POST', route: '/room/:token/unpin/:message_id', handler: unpinMessage })
+router.push({ method: 'GET', route: '/inbox', handler: getDmInbox })
+router.push({ method: 'GET', route: '/inbox/since/:message_id', handler: getDmInboxSince })
+router.push({ method: 'GET', route: '/outbox', handler: getDmOutbox })
+router.push({ method: 'GET', route: '/outbox/since/:message_id', handler: getDmOutboxSince })
+router.push({ method: 'POST', route: '/inbox/:session_id', handler: sendDmMessage })
+router.push({ method: 'DELETE', route: '/inbox', handler: deleteDmInbox })
+router.push({ method: 'PUT', route: '/room/:token/reaction/:message_id/:reaction', handler: addReaction })
+router.push({ method: 'DELETE', route: '/room/:token/reaction/:message_id/:reaction', handler: deleteReaction })
+router.push({ method: 'DELETE', route: '/room/:token/reactions/:message_id', handler: deleteAllMessageReactions })
+router.push({ method: 'DELETE', route: '/room/:token/reactions/:message_id/:reaction', handler: deleteAllMessageReactions })
+router.push({ method: 'GET', route: '/room/:token/reactors/:message_id/:reaction', handler: getMessageReactionReactors })
+
+const methodsMap = new Map<string, Route[]>()
+router.forEach(route => {
+  if (!methodsMap.has(route.method)) {
+    methodsMap.set(route.method, [])
+  }
+  methodsMap.get(route.method)?.push(route)
+})
 
 export async function handleIncomingRequest(req: SogsRequest): Promise<SogsResponse> {
   const supportedMethods = ['GET', 'POST', 'PUT', 'DELETE']
@@ -115,12 +94,13 @@ export async function handleIncomingRequest(req: SogsRequest): Promise<SogsRespo
     }
   }
 
-  const route = router.find(req.method as HTTPMethod, req.endpoint)
-  const handler = route ? routesMap[route.handler.name] : null
-  if (route && handler) {
-    return await handler({ ...req, params: route.params, searchParams: route.searchParams })
+  const request = findRoute(req.method, req.endpoint)
+  if (request) {
+    return await request.route.handler({ ...req, params: request.params, searchParams: request.searchParams })
   } else {
-    console.warn('Unknown route', req.method, req.endpoint)
+    if(process.env.BUNSOGS_DEV === 'true') {
+      console.warn('Unknown route', req.method, req.endpoint)
+    }
     return {
       response: null,
       status: 404
@@ -128,31 +108,15 @@ export async function handleIncomingRequest(req: SogsRequest): Promise<SogsRespo
   }
 }
 
-const routesMap: { [route: string]: (req: SogsRequest) => SogsResponse | Promise<SogsResponse> } = {
-  getCapabilities,
-  getRoom,
-  getRoomUpdates,
-  getRoomRecentMessages,
-  getRoomMessagesSince,
-  postRoomMessage,
-  deleteRoomMessage,
-  uploadFileToRoom,
-  retrieveFileInRoom,
-  deleteAllFromUser,
-  banUser,
-  unbanUser,
-  appointModerator,
-  pinMessage,
-  unpinMessage,
-  unpinAllMessages,
-  getDmInbox,
-  getDmInboxSince,
-  getDmOutbox,
-  getDmOutboxSince,
-  sendDmMessage,
-  deleteDmInbox,
-  addReaction,
-  deleteReaction,
-  deleteAllMessageReactions,
-  getMessageReactionReactors,
+function findRoute(method: string, route: string): { route: Route, params: Partial<Record<string, string | string[]>>, searchParams: Record<string, string> } | null {
+  const methodRoutes = methodsMap.get(method)
+  if (!methodRoutes) return null
+  const url = new URL(route, 'http://localhost')
+  for(const endpoint of methodRoutes) {
+    const result = match(endpoint.route)(url.pathname)
+    if(result !== false) {
+      return { route: endpoint, params: result.params, searchParams: Object.fromEntries(url.searchParams.entries()) }
+    }
+  }
+  return null
 }
