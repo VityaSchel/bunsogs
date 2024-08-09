@@ -25,27 +25,23 @@ const migrations: Migration[] = migrationsSql.map((sql, i) => ({
 }))
 migrate(db, migrations)
 
-const getUserQuery = await db.query<usersEntity, { $id: number }>('SELECT session_id FROM users WHERE id = :id')
-
 export async function getRoomsFromDb() {
   const rooms = await db.query<roomsEntity, []>('SELECT * FROM rooms').all()
   return rooms
 }
 
 export async function getPinnedMessagesFromDb(roomId: number) {
-  const pinnedMessages = await db.query<pinned_messagesEntity, { $id: number }>(
+  const pinnedMessages = await db.query<Pick<pinned_messagesEntity, 'message' | 'pinned_at'> & { session_id: string }, { $id: number }>(
     `SELECT message, pinned_at, users.session_id
     FROM pinned_messages JOIN users ON pinned_by = users.id
     WHERE room = $id
     ORDER BY pinned_at`
   ).all({ $id: roomId })
   return await Promise.all(pinnedMessages.map(async pm => {
-    const user = await getUserQuery.get({ $id: pm.pinned_by })
-    
     return {
       id: pm.message,
       pinnedAt: pm.pinned_at,
-      pinnedBy: user!.session_id
+      pinnedBy: pm.session_id
     }
   }))
 }

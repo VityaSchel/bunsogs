@@ -42,7 +42,7 @@ import { z } from 'zod'
  */
 export async function pinMessage(req: SogsRequest): Promise<SogsResponse> {
   const roomToken = req.params?.['token']
-  if (!roomToken) {
+  if (!roomToken || Array.isArray(roomToken)) {
     return { status: 400, response: null }
   }
 
