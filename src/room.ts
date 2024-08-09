@@ -60,13 +60,13 @@ export class Room {
   /** Array of pinned message information */
   pinnedMessages: PinnedMessage[]
   /** Room's publicly viewable moderators. This does not include room administrators nor hidden moderators. */
-  moderators: Set<User>
+  moderators: Set<string>
   /** Room's publicly viewable administrators. This does not include room moderators nor hidden admins. */
-  admins: Set<User>
+  admins: Set<string>
   /** Room's publicly hidden moderators. */
-  hiddenModerators: Set<User>
+  hiddenModerators: Set<string>
   /** Room's publicly hidden administrators. */
-  hiddenAdmins: Set<User>
+  hiddenAdmins: Set<string>
   /** Indicates whether new users have read permission in the room. */
   defaultRead: boolean
   /** Indicates whether new users have access permission in the room. */
@@ -117,19 +117,15 @@ export class Room {
     this.messageSequence = messageSequence
     this.created = created
     this.pinnedMessages = pinnedMessages
-    const moderatorsUsers = moderators.map(x => new User({ sessionID: x }))
-    this.moderators = new Set(moderatorsUsers)
-    const adminsUsers = admins.map(x => new User({ sessionID: x }))
-    this.admins = new Set(adminsUsers)
+    this.moderators = new Set(moderators)
+    this.admins = new Set(admins)
     this.defaultRead = defaultRead
     this.defaultAccessible = defaultAccessible
     this.defaultWrite = defaultWrite
     this.defaultUpload = defaultUpload
     this.imageId = imageId
-    const hiddenModeratorsUsers = hiddenModerators.map(x => new User({ sessionID: x }))
-    this.hiddenModerators = new Set(hiddenModeratorsUsers)
-    const hiddenAdminsUsers = hiddenAdmins.map(x => new User({ sessionID: x }))
-    this.hiddenAdmins = new Set(hiddenAdminsUsers)
+    this.hiddenModerators = new Set(hiddenModerators)
+    this.hiddenAdmins = new Set(hiddenAdmins)
     this.rateLimitSettings = rateLimitSettings
   }
 
@@ -148,10 +144,10 @@ export class Room {
       rooms.delete(this.token)
       return
     } else {
-      this.defaultAccessible = room.accessible
-      this.defaultRead = room.read
-      this.defaultWrite = room.write
-      this.defaultUpload = room.upload
+      this.defaultAccessible = room.accessible ? true : false
+      this.defaultRead = room.read ? true : false
+      this.defaultWrite = room.write ? true : false
+      this.defaultUpload = room.upload ? true : false
       this.activeUsers = room.active_users
       this.description = room.description
       this.imageId = room.image
@@ -161,32 +157,29 @@ export class Room {
       }
       this.infoUpdates = room.info_updates
     }
-    const admins = new Set<User>(), moderators = new Set<User>(), hiddenAdmins = new Set<User>(), hiddenModerators = new Set<User>()
+    const admins = new Set<string>(), 
+      moderators = new Set<string>(), 
+      hiddenAdmins = new Set<string>(), 
+      hiddenModerators = new Set<string>()
     for(const row of await this.getAdminsAndMods()) {
       if(row.admin) {
         if(row.visible_mod) {
-          admins.add(new User({ sessionID: row.session_id }))
+          admins.add(row.session_id)
         } else {
-          hiddenAdmins.add(new User({ sessionID: row.session_id }))
+          hiddenAdmins.add(row.session_id)
         }
       } else {
         if(row.visible_mod) {
-          moderators.add(new User({ sessionID: row.session_id }))
+          moderators.add(row.session_id)
         } else {
-          hiddenModerators.add(new User({ sessionID: row.session_id }))
+          hiddenModerators.add(row.session_id)
         }
       }
     }
     this.admins = admins
-    this.hiddenAdmins = admins
     this.moderators = moderators
+    this.hiddenAdmins = hiddenAdmins
     this.hiddenModerators = hiddenModerators
-    await Promise.all([
-      ...Array.from(this.admins.values()).map(admin => admin.refresh()),
-      ...Array.from(this.moderators.values()).map(moderator => moderator.refresh()),
-      ...Array.from(this.hiddenAdmins.values()).map(admin => admin.refresh()),
-      ...Array.from(this.hiddenModerators.values()).map(moderator => moderator.refresh()),
-    ])
   }
 
   _permissionsCache: Map<number, { cachedAt: number, permissions: UserPermissions }> = new Map()
@@ -477,10 +470,10 @@ export class Room {
     const mod = user === null 
       ? false
       : (
-        this.moderators.has(user)
-        || this.admins.has(user)
-        || this.hiddenModerators.has(user)
-        || this.hiddenAdmins.has(user)
+        this.moderators.has(user.sessionID)
+        || this.admins.has(user.sessionID)
+        || this.hiddenModerators.has(user.sessionID)
+        || this.hiddenAdmins.has(user.sessionID)
         || user.admin
         || user.moderator
       )

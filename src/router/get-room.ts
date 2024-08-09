@@ -5,7 +5,7 @@ import { testPermission } from '@/utils'
 
 export async function getRoom(req: SogsRequest): Promise<SogsResponse> {
   const roomToken = req.params?.['token']
-  if (!roomToken) {
+  if (!roomToken || Array.isArray(roomToken)) {
     return {
       status: 404,
       response: null
@@ -46,8 +46,8 @@ export async function getRoomDetails(room: Room, user: User | null) {
   if(user !== null) {
     isUserGlobalAdmin = user.admin
     isUserGlobalModerator = isUserGlobalAdmin || user.moderator
-    isUserModerator = isUserGlobalModerator || room.moderators.has(user)
-    isUserAdmin = isUserModerator || room.admins.has(user)
+    isUserModerator = isUserGlobalModerator || room.moderators.has(user.sessionID)
+    isUserAdmin = isUserGlobalAdmin || room.admins.has(user.sessionID)
   }
 
   let userPermissions: Pick<UserPermissions, 'read' | 'write' | 'upload' | 'banned'>
@@ -65,21 +65,21 @@ export async function getRoomDetails(room: Room, user: User | null) {
   return {
     active_users: room.activeUsers,
     active_users_cutoff: room.activeUsersCutoff,
-    admins: Array.from(room.admins).map(a => a.sessionID),
+    admins: Array.from(room.admins),
     created: room.created / 1000,
     description: room.description,
     image_id: room.imageId,
     info_updates: room.infoUpdates,
     message_sequence: room.messageSequence,
-    moderators: Array.from(room.moderators).map(a => a.sessionID),
+    moderators: Array.from(room.moderators),
     name: room.name,
     ...((isUserAdmin || isUserModerator) ? {
       default_read: room.defaultRead,
       default_write: room.defaultWrite,
       default_upload: room.defaultUpload,
       default_accessible: room.defaultAccessible,
-      hidden_admins: Array.from(room.hiddenAdmins).map(a => a.sessionID),
-      hidden_moderators: Array.from(room.hiddenModerators).map(a => a.sessionID)
+      hidden_admins: Array.from(room.hiddenAdmins),
+      hidden_moderators: Array.from(room.hiddenModerators)
     } : {}),
     token: room.token,
     pinned_messages: room.pinnedMessages.map(pm => ({

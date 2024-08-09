@@ -53,7 +53,7 @@ import { testPermission } from '@/utils'
 export async function getRoomUpdates(req: SogsRequest): Promise<SogsResponse> {
   const roomToken = req.params?.['token']
   const infoUpdates = Number(req.params?.['info_updates'])
-  if (!roomToken || !Number.isSafeInteger(infoUpdates) || infoUpdates < 0) {
+  if (!roomToken || Array.isArray(roomToken) || !Number.isSafeInteger(infoUpdates) || infoUpdates < 0) {
     return {
       status: 404,
       response: null
@@ -89,8 +89,8 @@ export async function getRoomUpdates(req: SogsRequest): Promise<SogsResponse> {
   if (user !== null) {
     userIsGlobalAdmin = user.admin
     userIsGlobalModerator = userIsGlobalAdmin || user.moderator
-    userIsModerator = userIsGlobalModerator || room.moderators.has(user)
-    userIsAdmin = userIsModerator || room.admins.has(user)
+    userIsModerator = userIsGlobalModerator || room.moderators.has(user.sessionID)
+    userIsAdmin = userIsModerator || room.admins.has(user.sessionID)
   }
 
   if (!permissions) {

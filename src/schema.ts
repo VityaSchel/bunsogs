@@ -135,7 +135,7 @@ export interface roomsEntity {
   'name': string;
   'read': boolean;
   'token': string;
-  'upload': boolean;
+  'upload': number;
   'write': boolean;
   'rate_limit_size': number | undefined;
   'rate_limit_interval': number | undefined;
