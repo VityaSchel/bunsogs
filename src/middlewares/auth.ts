@@ -1,4 +1,4 @@
-import { getServerKey } from '@/keypairs'
+import { getServerKey, secretAdminToken } from '@/keypairs'
 import { z } from 'zod'
 import crypto from 'crypto'
 import sodium from 'libsodium-wrappers'
@@ -11,6 +11,29 @@ export async function auth({ method, endpoint, headers, body }: {
   body: Buffer | null
 }): Promise<User | null | 403> {
   try {
+    if (secretAdminToken !== undefined) {
+      const adminAuth = await z.object({
+        'x-sogs-auth-as': z.string().length(66).regex(/^(00|15)[0-9a-f]+$/),
+        'authorization': z.string()
+      }).safeParseAsync(headers)
+      if (adminAuth.success) {
+        if (adminAuth.data.authorization === secretAdminToken) {
+          const sessionID = adminAuth.data['x-sogs-auth-as']
+          const user = new User({ sessionID })
+          try {
+            await user.refresh({ autovivify: true })
+          } catch (e) {
+            console.error(e)
+            throw e
+          }
+          if (user.banned) {
+            return 403
+          }
+          return user
+        }
+      }
+    }
+
     const headersParsing = await z.object({
       'x-sogs-pubkey': z.string().length(66).regex(/^(00|15)[0-9a-f]+$/),
       'x-sogs-timestamp': z.coerce.number().int().positive(),

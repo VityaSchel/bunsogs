@@ -10,6 +10,18 @@ const hexRegex = /^[a-f0-9]+$/
 const base64regex = /^([0-9a-zA-Z+/]{4})*(([0-9a-zA-Z+/]{2}==)|([0-9a-zA-Z+/]{3}=))?$/
 const base32regex = /^[A-Z2-7]+=*$/
 
+export let secretAdminToken: string | undefined = undefined
+try {
+  const token = await fs.readFile('./secret_admin_token', 'utf-8').then(s => s.trim())
+  if (token.length === 0) {
+    secretAdminToken = undefined
+  } else {
+    secretAdminToken = token
+  }
+} catch(e) {
+  secretAdminToken = undefined
+}
+
 export function parsePubkey(pubkey: string) {
   let pubkeyBytes: Buffer
 

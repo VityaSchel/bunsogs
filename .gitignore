@@ -10,3 +10,4 @@ plugins/*
 key_x25519
 releases/*
 !releases/.gitkeep
+secret_admin_token

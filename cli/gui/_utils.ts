@@ -5,7 +5,7 @@ export const clearLines = (count) => {
   process.stdout.write('\x1b[0J')
 }
 
-export const showSuccess = async (message: string) => {
+export const showSuccess = async (message: string, lines = 1) => {
   const response = await prompts({
     type: 'select',
     name: 'value',
@@ -15,7 +15,7 @@ export const showSuccess = async (message: string) => {
     ],
     hint: ' '
   })
-  clearLines(1)
+  clearLines(lines)
   return response.value === 'ok'
 }
 
