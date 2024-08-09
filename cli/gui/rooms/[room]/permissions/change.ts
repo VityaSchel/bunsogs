@@ -34,10 +34,10 @@ export const changeUserRoomPermissionsOverridesMenu = async (room: roomsEntity, 
   }) : userSessionId
   const userId = await getOrCreateUserIdBySessionID(sessionId as string)
   const overrides = await getUserRoomPermissionsOverrides({ roomId: room.id, userId })
-  const currentAccessible = overrides?.accessible !== null ? Boolean(overrides!.accessible) : null
-  const currentRead = overrides?.accessible !== null ? Boolean(overrides!.accessible) : null
-  const currentWrite = overrides?.accessible !== null ? Boolean(overrides!.accessible) : null
-  const currentUpload = overrides?.accessible !== null ? Boolean(overrides!.accessible) : null
+  const currentAccessible = (overrides && overrides?.accessible !== null) ? Boolean(overrides.accessible) : null
+  const currentRead = (overrides && overrides?.accessible !== null) ? Boolean(overrides!.accessible) : null
+  const currentWrite = (overrides && overrides?.accessible !== null) ? Boolean(overrides!.accessible) : null
+  const currentUpload = (overrides && overrides?.accessible !== null) ? Boolean(overrides!.accessible) : null
   const response = await prompts([
     {
       type: 'select',
