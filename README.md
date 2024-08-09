@@ -251,6 +251,9 @@ If you ever want to restore this user's permissions, simply repeat process until
 
 ## Known issues
 
+- Blinding does not work
+  - There are some issues with blinding Session ID, sometimes it just doesn't work despite algorithm being pretty much the same as pysogs and libsession implementations
+  - You should write blinded session id by client instead of clear unblinded session ID into CLI
 - You can only add one admin/moderator, ban only one user per time
   - We should allow multiple inputs in Session ID fields using `list` type from prompts library
 
