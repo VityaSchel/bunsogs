@@ -75,7 +75,7 @@ import fs from 'fs/promises'
  */
 export async function uploadFileToRoom(req: SogsRequest): Promise<SogsResponse> {
   const roomToken = req.params?.['token']
-  if (!roomToken) {
+  if (!roomToken || Array.isArray(roomToken)) {
     return { status: 400, response: null }
   }
 
@@ -146,7 +146,7 @@ export async function uploadFileToRoom(req: SogsRequest): Promise<SogsResponse> 
   // and execute them in case this directory is publicly accessible and user
   // happens to configure php-fpm, for example
   const storageFilename = insertedFile.id + '_' + uuid()
-  const uploadsDirectory = path.resolve(__dirname, '../../uploads', roomToken)
+  const uploadsDirectory = path.resolve('./uploads', roomToken)
   const filePath = path.resolve(uploadsDirectory, storageFilename)
   try {
     await fs.mkdir(uploadsDirectory, { recursive: true })

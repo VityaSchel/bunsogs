@@ -61,7 +61,7 @@ import fs from 'fs/promises'
  */
 export async function retrieveFileInRoom(req: SogsRequest): Promise<SogsResponse> {
   const roomToken = req.params?.['token']
-  if (!roomToken) {
+  if (!roomToken || Array.isArray(roomToken)) {
     return { status: 400, response: null }
   }
 
@@ -94,7 +94,7 @@ export async function retrieveFileInRoom(req: SogsRequest): Promise<SogsResponse
   if (file === null || (file.expiry !== null && file.expiry < Math.floor(Date.now() / 1000))) {
     return { status: 404, response: null }
   } else {
-    const filePath = await path.resolve(__dirname, '../../', file.path)
+    const filePath = await path.resolve('./', file.path)
     const fileContents = await fs.readFile(filePath)
     const headers: Record<string, string> = {
       'Date': String(Math.floor(file.uploaded)),

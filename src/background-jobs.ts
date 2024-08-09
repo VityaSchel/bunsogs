@@ -51,7 +51,7 @@ async function pruneFiles() {
   const paths = rows.map(r => r.path)
   for(const filepath of paths) {
     try {
-      await fs.unlink(path.resolve(__dirname, '../', filepath))
+      await fs.unlink(path.resolve('./', filepath))
     } catch(e) {
       if (e && typeof e === 'object' && 'code' in e && e.code === 'ENOENT') {
         continue

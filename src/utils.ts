@@ -64,7 +64,7 @@ export function randomFilename(inheritExtension?: string) {
 }
 
 export function isSafeFilename(filename: string) {
-  const uploadsDirectory = path.resolve(__dirname, '../uploads')
+  const uploadsDirectory = path.resolve('./uploads')
   if (filename.includes('\0')) return false
   const fullPath = path.join(uploadsDirectory, filename)
   const normalizedPath = path.normalize(fullPath)
