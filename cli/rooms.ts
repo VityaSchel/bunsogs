@@ -30,7 +30,7 @@ export async function getRoomByToken(token: string) {
 export async function createRoom({ token, name, description, permissions }: CreateRoomInput): Promise<number> {
   try {
     const row = await db.query<{ id: number }, { $token: string, $name: string, $description: string, $read: boolean, $write: boolean, $accessible: boolean, $upload: boolean }>(`
-      INSERT INTO rooms(token, name, description, read, accessible, write, upload) VALUES($token, $name, $description, $read, $write, $accessible, $upload) RETURNING id
+      INSERT INTO rooms(token, name, description, read, accessible, write, upload) VALUES($token, $name, $description, $read, $accessible, $write, $upload) RETURNING id
     `)
       .get({ 
         $token: token,
