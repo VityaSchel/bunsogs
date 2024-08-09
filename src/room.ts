@@ -205,7 +205,6 @@ export class Room {
       FROM user_permissions
       WHERE room = $roomId AND "user" = $user
     `).get({ $roomId: roomId, $user: user.id })
-    console.log(permissionsDb, roomId, user.id)
     const permissions = {
       banned: Boolean(permissionsDb?.banned),
       read: Boolean(permissionsDb?.read ?? this.defaultRead),

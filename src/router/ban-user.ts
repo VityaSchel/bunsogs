@@ -97,7 +97,6 @@ export async function banUser(req: SogsRequest): Promise<SogsResponse> {
   }
 
   if(user.admin || user.moderator) {
-    console.log(user)
     return { status: 403, response: null }
   }
   
