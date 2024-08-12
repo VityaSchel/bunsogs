@@ -251,6 +251,7 @@ If you ever want to restore this user's permissions, simply repeat process until
 
 ## Known issues
 
+- Modifying bunsogs with bunsogs-cli while it's running is not recommended, as some changes may not be reflected instantly and some might not be reflected until the next bunsogs restart. Also you might run into `database locked` errors.
 - Blinding does not work
   - There are some issues with blinding Session ID, sometimes it just doesn't work despite algorithm being pretty much the same as pysogs and libsession implementations
   - You should write blinded session id by client instead of clear unblinded session ID into CLI

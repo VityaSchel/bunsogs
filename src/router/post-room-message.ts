@@ -55,7 +55,7 @@ import SJSON from 'secure-json-parse'
  */
 export async function postRoomMessage(req: SogsRequest): Promise<SogsResponse> {
   const roomToken = req.params?.['token']
-  if (!roomToken) {
+  if (!roomToken || Array.isArray(roomToken)) {
     return { status: 400, response: null }
   }
 

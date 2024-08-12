@@ -65,7 +65,27 @@ const handleOnionConnection = async (request: Request) => {
     : {}
 
   if(process.env.BUNSOGS_DEV === 'true') {
-    console.log('Request:', new TextDecoder('utf-8').decode(payloadDecoded[0]), 'body:', payloadBody?.subarray(0, 50).toString('utf-8') + '...')
+    const request = new TextDecoder('utf-8').decode(payloadDecoded[0])
+    try {
+      const requestFormatted = JSON.parse(request)
+      console.log('Request:\n', requestFormatted)
+    } catch(e) {
+      console.log('Request:\n', request)
+    }
+    const body = payloadBody && (payloadBody.length > 1000
+      ? payloadBody.subarray(0, 1000).toString('utf-8') + '...'
+      : payloadBody.toString('utf-8'))
+    if (body) {
+      try {
+        const bodyFormatted = JSON.parse(body)
+        console.log('Body:\n', bodyFormatted)
+      } catch (e) {
+        console.log('Body:\n', body)
+      }
+    } else {
+      console.log('Body:', body)
+    }
+    console.log()
   }
 
   const isBatchRequest = typeof payloadMetadata === 'object' &&
@@ -125,7 +145,13 @@ const handleOnionConnection = async (request: Request) => {
   }
 
   if (process.env.BUNSOGS_DEV === 'true') {
-    console.log('Responded with', status, responseBody) // TODO: remove
+    try {
+      const responseFormatted = JSON.parse(responseBody)
+      console.log('Responded with', status, responseFormatted)
+    } catch(e) {
+      console.log('Responded with', status, responseBody)
+    }
+    console.log('-'.repeat(50))
   }
 
   const responseData = Buffer.from(responseBody)

@@ -14,9 +14,28 @@ export function addSessionMessagePadding(data: any, length: number): string {
   return buffer.toString('base64')
 }
 
+/**
+ * You can find detailed explanation in pysogs code, starting with "sometimes".
+ * You know, I would rename Session messenger to Sometimes.
+ * Sometimes we add padding, sometimes we don't
+ * Sometimes Session works, sometimes it doesn't
+ * Sometimes we publish update that breaks 1000 service nodes for two weeks
+ * Sometimes we don't publish updates for months
+ * y'know that "sometimes" in terms of our lovely Session
+ * also pysogs has this comment to this function:
+ * # Session code has a comment "This is dumb"
+ * # describing all of this.  I concur.
+ * And I agree to that.
+ */
 export function removeSessionMessagePadding(data: Buffer): Buffer {
-  const paddingIndex = data.indexOf(0x80)
-  return data.subarray(0, paddingIndex)
+  if (data && (data[data.length - 1] === 0x00 || data[data.length - 1] === 0x80)) {
+    const lastNonZeroIndex = data.lastIndexOf(0x00) === -1 ? data.length : data.lastIndexOf(0x00) + 1
+    const strippedData = data.subarray(0, lastNonZeroIndex)
+    if (strippedData.length && strippedData[strippedData.length - 1] === 0x80) {
+      data = strippedData.subarray(0, -1)
+    }
+  }
+  return data
 }
 
 export function bindSqliteArray<T extends string[] | bigint[] | NodeJS.TypedArray[] | number[] | boolean[] | null[]>(items: T): { k: string, v: Record<string, T[number]> } {
