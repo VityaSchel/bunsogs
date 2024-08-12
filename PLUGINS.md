@@ -19,6 +19,16 @@ Plugins are installed to SOGS by placing directory with plugin to /plugins direc
       - [`banUser`](#banuser)
       - [`unbanUser`](#unbanuser)
       - [`setUserPermissions`](#setuserpermissions)
+      - [`sendDm`](#senddm)
+      - [`sendMessage`](#sendmessage)
+      - [`setRoomAdmin`](#setroomadmin)
+      - [`removeRoomAdmin`](#removeroomadmin)
+      - [`setRoomModerator`](#setroommoderator)
+      - [`removeRoomModerator`](#removeroommoderator)
+      - [`setGlobalAdmin`](#setglobaladmin)
+      - [`removeGlobalAdmin`](#removeglobaladmin)
+      - [`setGlobalModerator`](#setglobalmoderator)
+      - [`removeGlobalModerator`](#removeglobalmoderator)
   - [Logging and debugging](#logging-and-debugging)
 
 ## Plugins development
@@ -251,6 +261,46 @@ Request:
 | write      | `boolean` or `null` (optional) | Optional: only specify this if you want to change that permission from the current user permission override. Pass `true` or `false` to allow or deny sending messages for that user. Pass `null` to reset this permission to default, provided by this room.     |
 | upload     | `boolean` or `null` (optional) | Optional: only specify this if you want to change that permission from the current user permission override. Pass `true` or `false` to allow or deny uploading files for this user. Pass `null` to reset this permission to default, provided by this room.      |
 |            |                                |                                                                                                                                                                                                                                                                  |
+
+#### `sendDm`
+
+Docs TBD
+
+#### `sendMessage`
+
+Docs TBD
+
+#### `setRoomAdmin`
+
+Docs TBD
+
+#### `removeRoomAdmin`
+
+Docs TBD
+
+#### `setRoomModerator`
+
+Docs TBD
+
+#### `removeRoomModerator`
+
+Docs TBD
+
+#### `setGlobalAdmin`
+
+Docs TBD
+
+#### `removeGlobalAdmin`
+
+Docs TBD
+
+#### `setGlobalModerator`
+
+Docs TBD
+
+#### `removeGlobalModerator`
+
+Docs TBD
 
 ## Logging and debugging
 

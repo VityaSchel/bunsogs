@@ -33,7 +33,7 @@ export async function loadPlugins() {
     }
     const worker = new Worker(entryPoint, { type: 'module' })
     worker.addEventListener('error', e => {
-      console.error(chalk.bgRedBright(chalk.white(`Plugin ${packageJson.name} error:`)), chalk.redBright(e.toString()))
+      console.error(chalk.bgRedBright(chalk.white(`Plugin ${packageJson.name} error:`)), chalk.redBright(e.message))
     })
     worker.addEventListener('message', e => {
       if(typeof e === 'object') {
@@ -47,6 +47,7 @@ export async function loadPlugins() {
             .catch(e => {
               if(process.env.BUNSOGS_DEV === 'true') {
                 console.error(chalk.bgRedBright(chalk.white(`Plugin ${packageJson.name} error:`)), chalk.redBright(e.toString()))
+                console.error(chalk.redBright(e.stack))
               }
             })
         }
@@ -98,31 +99,11 @@ export function sendPluginMessage(type: string, payload: object) {
   }
 }
 
-const pluginsSchemas = {
-  banUser: z.object({
-    user: z.union([z.string().length(66).regex(/^(15|05)[a-f0-9]+$/), z.number().nonnegative().int()]),
-    room: z.union([z.string().min(1), z.number().int().nonnegative()]).optional(),
-    timeout: z.number().min(1).max(Number.MAX_SAFE_INTEGER).optional()
-  }),
-  unbanUser: z.object({
-    user: z.union([z.string().length(66).regex(/^(15|05)[a-f0-9]+$/), z.number().nonnegative().int()]),
-    room: z.union([z.string().min(1), z.number().int().nonnegative()]).optional(),
-  }),
-  setUserPermissions: z.object({
-    user: z.union([z.string().length(66).regex(/^(15|05)[a-f0-9]+$/), z.number().nonnegative().int()]),
-    room: z.union([z.string().min(1), z.number().int().nonnegative()]),
-    accessible: z.boolean().nullable().optional(),
-    read: z.boolean().nullable().optional(),
-    write: z.boolean().nullable().optional(),
-    upload: z.boolean().nullable().optional(),
-  })
-}
-
 async function handlePluginMethod({ name, data }: { name: string, data: { method: string, [key: string]: any } }) {
   const { method, ...payload } = data
   switch (method) {
     case 'banUser': {
-      const params = pluginsSchemas.banUser.parse(payload)
+      const params = API.paramsSchemas.banUser.parse(payload)
       if (params.room !== undefined) {
         await API.banUserInRoom({ user: params.user, room: params.room, timeout: params.timeout })
       } else {
@@ -131,7 +112,7 @@ async function handlePluginMethod({ name, data }: { name: string, data: { method
       break
     }
     case 'unbanUser': {
-      const params = pluginsSchemas.unbanUser.parse(payload)
+      const params = API.paramsSchemas.unbanUser.parse(payload)
       if (params.room !== undefined) {
         await API.unbanUserInRoom({ user: params.user, room: params.room })
       } else {
@@ -140,8 +121,58 @@ async function handlePluginMethod({ name, data }: { name: string, data: { method
       break
     }
     case 'setUserPermissions': {
-      const params = pluginsSchemas.setUserPermissions.parse(payload)
+      const params = API.paramsSchemas.setUserPermissions.parse(payload)
       await API.setUserPermissions({ user: params.user, room: params.room, accessible: params.accessible, read: params.read, write: params.write, upload: params.upload })
+      break
+    }
+    case 'sendDm': {
+      const params = API.paramsSchemas.sendDm.parse(payload)
+      await API.sendDm({ from: params.from, to: params.to, message: params.message })
+      break
+    }
+    case 'sendMessage': {
+      const params = API.paramsSchemas.sendMessage.parse(payload)
+      await API.sendMessage({ user: params.user, room: params.room, data: params.data, signature: params.signature, whisperTo: params.whisperTo, whisperMods: params.whisperMods, files: params.files })
+      break
+    }
+    case 'setRoomAdmin': {
+      const params = API.paramsSchemas.setRoomAdmin.parse(payload)
+      await API.setRoomAdmin({ user: params.user, room: params.room, visible: params.visible })
+      break
+    }
+    case 'setRoomModerator': {
+      const params = API.paramsSchemas.setRoomModerator.parse(payload)
+      await API.setRoomAdmin({ user: params.user, room: params.room, visible: params.visible })
+      break
+    }
+    case 'setGlobalAdmin': {
+      const params = API.paramsSchemas.setGlobalAdmin.parse(payload)
+      await API.setGlobalAdmin({ user: params.user, visible: params.visible })
+      break
+    }
+    case 'setGlobalModerator': {
+      const params = API.paramsSchemas.setGlobalModerator.parse(payload)
+      await API.setGlobalModerator({ user: params.user, visible: params.visible })
+      break
+    }
+    case 'removeRoomAdmin': {
+      const params = API.paramsSchemas.removeRoomAdmin.parse(payload)
+      await API.removeRoomAdmin({ user: params.user, room: params.room })
+      break
+    }
+    case 'removeRoomModerator': {
+      const params = API.paramsSchemas.removeRoomModerator.parse(payload)
+      await API.removeRoomModerator({ user: params.user, room: params.room })
+      break
+    }
+    case 'removeGlobalAdmin': {
+      const params = API.paramsSchemas.removeGlobalAdmin.parse(payload)
+      await API.removeGlobalAdmin({ user: params.user })
+      break
+    }
+    case 'removeGlobalModerator': {
+      const params = API.paramsSchemas.removeGlobalModerator.parse(payload)
+      await API.removeGlobalModerator({ user: params.user })
       break
     }
     default:
