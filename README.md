@@ -12,7 +12,7 @@ Aims to be very fast, flexible and extensible. Drop-in replacement for pysogs â€
     - [Profanity \& topic moderation filter](#profanity--topic-moderation-filter)
     - [Antispam \[in development\]](#antispam-in-development)
     - [Anticsam \[in development\]](#anticsam-in-development)
-    - [Greeting DM messages \[in development\]](#greeting-dm-messages-in-development)
+    - [Auto DM messages \[in development\]](#auto-dm-messages-in-development)
   - [Migration from official pysogs](#migration-from-official-pysogs)
   - [CLI](#cli)
     - [CLI Options](#cli-options)
@@ -108,11 +108,11 @@ Anticsam (anti children sexual abuse material) plugin aims to restrict people wh
 
 [Read more](https://github.com/VityaSchel/bunsogs-anticsam)
 
-### Greeting DM messages \[in development\]
+### Auto DM messages \[in development\]
 
 Autogreeting messages plugin sends new people in SOGS a welcoming message. It supports captcha verification out of box.
 
-[Read more](https://github.com/VityaSchel/bunsogs-auto-greetings)
+[Read more](https://github.com/VityaSchel/bunsogs-auto-dm)
 
 ## Migration from official pysogs
 

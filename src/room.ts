@@ -6,6 +6,7 @@ import { requestPlugins } from '@/plugins'
 import { type filesEntity, type message_detailsEntity, type messagesEntity, type room_moderatorsEntity, type roomsEntity, type user_permissionsEntity, type usersEntity } from '@/schema'
 import { User } from '@/user'
 import * as Utils from '@/utils'
+import * as API from '@/api'
 
 type PinnedMessage = {
   /** The numeric message id. */
@@ -678,12 +679,8 @@ export class Room {
     const results = await requestPlugins('onBeforePost', { 
       message: {
         text: messageContent.dataMessage?.body ?? null,
-        author: {
-          session_id: user.sessionID,
-          admin: user.admin,
-          moderator: user.moderator,
-          roomPermissions: await this.getUserPermissions(user)
-        }
+        author: await API.mapUser(user, this),
+        room: API.mapRoom(this)
       }
     })
     const filtered = results.filter(v => v !== undefined)

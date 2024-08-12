@@ -1,11 +1,13 @@
+import { sendPluginMessage } from '@/plugins'
 import { getRooms } from '@/room'
 import type { SogsRequest, SogsResponse } from '@/router'
 import { testPermission } from '@/utils'
 import { z } from 'zod'
+import * as API from '@/api'
 
 export async function getRoomRecentMessages(req: SogsRequest): Promise<SogsResponse> {
   const roomToken = req.params?.['token']
-  if (!roomToken) {
+  if (!roomToken || Array.isArray(roomToken)) {
     return {
       status: 404,
       response: null
@@ -43,6 +45,11 @@ export async function getRoomRecentMessages(req: SogsRequest): Promise<SogsRespo
   } else if (!room.defaultAccessible) {
     return { status: 404, response: null }
   }
+
+  sendPluginMessage('onRecentMessagesRequest', {
+    user: req.user && await API.mapUser(req.user, room),
+    room: API.mapRoom(room),
+  })
 
   const messages = await room.getMessages(
     req.user, 
