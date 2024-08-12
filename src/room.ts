@@ -681,7 +681,8 @@ export class Room {
         text: messageContent.dataMessage?.body ?? null,
         author: await API.mapUser(user, this),
         room: API.mapRoom(this)
-      }
+      },
+      server: API.mapSogs()
     })
     const filtered = results.filter(v => v !== undefined)
       .some(v => 'action' in v && v.action === 'reject')

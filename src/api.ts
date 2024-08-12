@@ -1,4 +1,5 @@
 import { db } from '@/db'
+import { getServerKey } from '@/keypairs'
 import { mapRoomEntityToRoomInstance, Room } from '@/room'
 import type { roomsEntity } from '@/schema'
 import { User } from '@/user'
@@ -129,5 +130,11 @@ export function mapRoom(room: Room) {
   return {
     id: room.id,
     token: room.token
+  }
+}
+
+export function mapSogs() {
+  return {
+    pk: getServerKey().publicKey
   }
 }

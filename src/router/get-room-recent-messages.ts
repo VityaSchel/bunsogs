@@ -49,6 +49,7 @@ export async function getRoomRecentMessages(req: SogsRequest): Promise<SogsRespo
   sendPluginMessage('onRecentMessagesRequest', {
     user: req.user && await API.mapUser(req.user, room),
     room: API.mapRoom(room),
+    server: API.mapSogs()
   })
 
   const messages = await room.getMessages(

@@ -14,6 +14,7 @@ Plugins are installed to SOGS by placing directory with plugin to /plugins direc
     - [Classes](#classes)
       - [Class User](#class-user)
       - [Class Room](#class-room)
+      - [Class Server](#class-server)
     - [Methods](#methods)
       - [`banUser`](#banuser)
       - [`unbanUser`](#unbanuser)
@@ -88,6 +89,7 @@ Payload:
   - `text` — text content of message
   - `author` — author of the message. Class: [User](#class-user)
   - `room` — room where message was sent. Class: [Room](#class-room)
+- `server` — this sogs. Class: [Server](#class-server)
 
 Example payload:
 ```js
@@ -120,6 +122,7 @@ Called when user requested `/room/:token/messages/recent`
 Payload:
 - `room` — room, that was requested. Class: [Room](#class-room)
 - `user` — user that made request, might be `null` if request made anonymously. Class: [User](#class-user)
+- `server` — this sogs. Class: [Server](#class-server)
 
 Example payload:
 ```js
@@ -181,6 +184,19 @@ Example:
 room = {
   id: 1,
   token: 'test'
+}
+```
+
+#### Class Server
+
+Represents current SOGS.
+
+- `pk` — sogs public key in hex string format
+
+Example:
+```js
+server = {
+  pk: 'ac9c872e525a58970df6971655abb944a30b38853442a793b29843d20795e840'
 }
 ```
 
