@@ -76,7 +76,7 @@ Alternatively, [run source code](./CONTRIBUTING.md#running-source-code), it's no
  
 You can use `PORT=1234` and/or `HOSTNAME=192.168.0.1` environmental variables to **override** sogs.conf variables for PORT and HOSTNAME.
 
-It's your job to configure web server to proxy requests to the specified URL. Bunsogs never tries to be an end server for your users. It's recommended to run some kind of reverse proxy, such as nginx, that will point to local bunsogs instance. Don't forget to [increase file size limit from default 1mb](https://stackoverflow.com/questions/28476643/default-nginx-client-max-body-size) if configuring nginx reverse proxy.
+It's your job to configure web server to proxy requests to the specified URL. Bunsogs never tries to be an end server for your users. It's recommended to run some kind of reverse proxy, such as nginx, that will point to local bunsogs instance. Make sure you change `url` in sogs.conf config file to your publicly accessible url. Don't forget to [increase file size limit from default 1mb](https://stackoverflow.com/questions/28476643/default-nginx-client-max-body-size) if configuring nginx reverse proxy.
 
 To leave SOGS running, you can use any persisting daemon you like, it can be just a [crontab script](https://phoenixnap.com/kb/crontab-reboot) that starts bunsogs on server restart or Linux's [screen](https://www.howtogeek.com/662422/how-to-use-linuxs-screen-command/) or more complicated [pm2](https://www.npmjs.com/package/pm2) (for example use `pm2 start "bun start" --name="My Session Community"` provide any name you like, also run `pm2 startup` to add pm2 to system autoruns). 
 

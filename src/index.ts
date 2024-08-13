@@ -292,7 +292,7 @@ console.log(
   roomsList.length 
     ? `\n    Public links to rooms:${
       roomsList.map(room => `\n      - ${
-        chalk.bold(`http://${hostname}:${port}/${room.token}?public_key=${keys.publicKey.toString('hex')}`)}`
+        chalk.bold(`${config.url}/${room.token}?public_key=${keys.publicKey.toString('hex')}`)}`
       ).join('')
     }`
     : chalk.bold('    You have no public rooms yet. Create your first room with bunsogs-cli!')

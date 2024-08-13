@@ -371,6 +371,7 @@ export function mapRoom(room: Room) {
 
 export function mapSogs() {
   return {
-    pk: getServerKey().publicKey.toString('hex')
+    pk: getServerKey().publicKey.toString('hex'),
+    url: getConfig().url
   }
 }
