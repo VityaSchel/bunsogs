@@ -6,6 +6,7 @@ import { z } from 'zod'
 import { v4 as uuid } from 'uuid'
 import chalk from 'chalk'
 import * as API from './api'
+import { getRooms } from '@/room'
 
 type Plugin = { name: string, worker: Worker }
 
@@ -44,6 +45,14 @@ export async function loadPlugins() {
             name: packageJson.name,
             data: e.data
           })
+            .then(response => {
+              if('ref' in e.data) {
+                worker.postMessage({
+                  response_ref: e.data.ref,
+                  ...response
+                })
+              }
+            })
             .catch(e => {
               if(process.env.BUNSOGS_DEV === 'true') {
                 console.error(chalk.bgRedBright(chalk.white(`Plugin ${packageJson.name} error:`)), chalk.redBright(e.toString()))
@@ -56,6 +65,13 @@ export async function loadPlugins() {
     plugins.push({
       name: packageJson.name,
       worker
+    })
+    worker.postMessage({
+      type: 'onLoad',
+      payload: {
+        rooms: Array.from(getRooms().values()).map(API.mapRoom),
+        server: API.mapSogs()
+      }
     })
   }
   process.on('SIGINT', () => { unloadPlugins() })
@@ -120,61 +136,34 @@ async function handlePluginMethod({ name, data }: { name: string, data: { method
       }
       break
     }
-    case 'setUserPermissions': {
-      const params = API.paramsSchemas.setUserPermissions.parse(payload)
-      await API.setUserPermissions({ user: params.user, room: params.room, accessible: params.accessible, read: params.read, write: params.write, upload: params.upload })
-      break
-    }
-    case 'sendDm': {
-      const params = API.paramsSchemas.sendDm.parse(payload)
-      await API.sendDm({ from: params.from, to: params.to, message: params.message })
-      break
-    }
-    case 'sendMessage': {
-      const params = API.paramsSchemas.sendMessage.parse(payload)
-      await API.sendMessage({ user: params.user, room: params.room, data: params.data, signature: params.signature, whisperTo: params.whisperTo, whisperMods: params.whisperMods, files: params.files })
-      break
-    }
-    case 'setRoomAdmin': {
-      const params = API.paramsSchemas.setRoomAdmin.parse(payload)
-      await API.setRoomAdmin({ user: params.user, room: params.room, visible: params.visible })
-      break
-    }
-    case 'setRoomModerator': {
-      const params = API.paramsSchemas.setRoomModerator.parse(payload)
-      await API.setRoomAdmin({ user: params.user, room: params.room, visible: params.visible })
-      break
-    }
-    case 'setGlobalAdmin': {
-      const params = API.paramsSchemas.setGlobalAdmin.parse(payload)
-      await API.setGlobalAdmin({ user: params.user, visible: params.visible })
-      break
-    }
-    case 'setGlobalModerator': {
-      const params = API.paramsSchemas.setGlobalModerator.parse(payload)
-      await API.setGlobalModerator({ user: params.user, visible: params.visible })
-      break
-    }
-    case 'removeRoomAdmin': {
-      const params = API.paramsSchemas.removeRoomAdmin.parse(payload)
-      await API.removeRoomAdmin({ user: params.user, room: params.room })
-      break
-    }
-    case 'removeRoomModerator': {
-      const params = API.paramsSchemas.removeRoomModerator.parse(payload)
-      await API.removeRoomModerator({ user: params.user, room: params.room })
-      break
-    }
-    case 'removeGlobalAdmin': {
-      const params = API.paramsSchemas.removeGlobalAdmin.parse(payload)
-      await API.removeGlobalAdmin({ user: params.user })
-      break
-    }
-    case 'removeGlobalModerator': {
-      const params = API.paramsSchemas.removeGlobalModerator.parse(payload)
-      await API.removeGlobalModerator({ user: params.user })
-      break
-    }
+    case 'setUserPermissions':
+      return await API[method](API.paramsSchemas[method].parse(payload))
+    case 'sendDm':
+      return await API[method](API.paramsSchemas[method].parse(payload))
+    case 'sendMessage':
+      return await API[method](API.paramsSchemas[method].parse(payload))
+    case 'deleteMessage':
+      return await API[method](API.paramsSchemas[method].parse(payload))
+    case 'setRoomAdmin':
+      return await API[method](API.paramsSchemas[method].parse(payload))
+    case 'setRoomModerator':
+      return await API[method](API.paramsSchemas[method].parse(payload))
+    case 'setGlobalAdmin':
+      return await API[method](API.paramsSchemas[method].parse(payload))
+    case 'setGlobalModerator':
+      return await API[method](API.paramsSchemas[method].parse(payload))
+    case 'removeRoomAdmin':
+      return await API[method](API.paramsSchemas[method].parse(payload))
+    case 'removeRoomModerator':
+      return await API[method](API.paramsSchemas[method].parse(payload))
+    case 'removeGlobalAdmin':
+      return await API[method](API.paramsSchemas[method].parse(payload))
+    case 'removeGlobalModerator':
+      return await API[method](API.paramsSchemas[method].parse(payload))
+    case 'uploadFile':
+      return await API[method](API.paramsSchemas[method].parse(payload))
+    case 'addReaction':
+      return await API[method](API.paramsSchemas[method].parse(payload))
     default:
       console.error(chalk.bgRedBright(chalk.white(`Plugin ${name}`)), chalk.redBright('called unknown method', method + '. Verify you\'re running correct version of the plugin and compatible version of bunsogs.'))
   }

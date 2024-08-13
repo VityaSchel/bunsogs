@@ -12,7 +12,7 @@ Aims to be very fast, flexible and extensible. Drop-in replacement for pysogs �
     - [Profanity \& topic moderation filter](#profanity--topic-moderation-filter)
     - [Antispam \[in development\]](#antispam-in-development)
     - [Anticsam \[in development\]](#anticsam-in-development)
-    - [Auto DM messages \[in development\]](#auto-dm-messages-in-development)
+    - [Auto DM messages \& captcha verification](#auto-dm-messages--captcha-verification)
   - [Migration from official pysogs](#migration-from-official-pysogs)
   - [CLI](#cli)
     - [CLI Options](#cli-options)
@@ -76,7 +76,7 @@ Alternatively, [run source code](./CONTRIBUTING.md#running-source-code), it's no
  
 You can use `PORT=1234` and/or `HOSTNAME=192.168.0.1` environmental variables to **override** sogs.conf variables for PORT and HOSTNAME.
 
-It is your job to configure web server to proxy requests to the specified URL. Bunsogs never tries to be end server for your users. It is highly recommended to run some kind of reverse proxy, such as nginx, that will point to local bunsogs instance. Don't forget to [increase file size limit from default 1mb](https://stackoverflow.com/questions/28476643/default-nginx-client-max-body-size) if configuring nginx reverse proxy.
+It's your job to configure web server to proxy requests to the specified URL. Bunsogs never tries to be an end server for your users. It's recommended to run some kind of reverse proxy, such as nginx, that will point to local bunsogs instance. Make sure you change `url` in sogs.conf config file to your publicly accessible url. Don't forget to [increase file size limit from default 1mb](https://stackoverflow.com/questions/28476643/default-nginx-client-max-body-size) if configuring nginx reverse proxy.
 
 To leave SOGS running, you can use any persisting daemon you like, it can be just a [crontab script](https://phoenixnap.com/kb/crontab-reboot) that starts bunsogs on server restart or Linux's [screen](https://www.howtogeek.com/662422/how-to-use-linuxs-screen-command/) or more complicated [pm2](https://www.npmjs.com/package/pm2) (for example use `pm2 start "bun start" --name="My Session Community"` provide any name you like, also run `pm2 startup` to add pm2 to system autoruns). 
 
@@ -90,7 +90,7 @@ To install a plugin, simply download and put it in plugins/ directory. Each plug
 
 ### Profanity & topic moderation filter
 
-Profanity filter plugin analyzes incoming messages for bad words and potentially inappropriate content. It has two modes which can work simultaniously: 
+Profanity filter plugin analyzes incoming messages for bad words on 54 languages and potentially inappropriate content. It has two modes which can work simultaniously: 
 - simple — checks for common words and abbrevations, this will filter out messages with specific words
 - GPT mode — makes request to GPT moderation endpoint, this won't filter out messages based on profanity, but instead focuses on restricting certain topics (configurable)
 
@@ -108,7 +108,7 @@ Anticsam (anti children sexual abuse material) plugin aims to restrict people wh
 
 [Read more](https://github.com/VityaSchel/bunsogs-anticsam)
 
-### Auto DM messages \[in development\]
+### Auto DM messages & captcha verification
 
 Autogreeting messages plugin sends new people in SOGS a welcoming message. It supports captcha verification out of box.
 

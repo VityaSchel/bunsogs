@@ -10,6 +10,7 @@ Plugins are installed to SOGS by placing directory with plugin to /plugins direc
   - [API reference](#api-reference)
     - [Hooks and callbacks](#hooks-and-callbacks)
       - [`onBeforePost` hook](#onbeforepost-hook)
+      - [`onLoad` callback](#onload-callback)
       - [`onRecentMessagesRequest` callback](#onrecentmessagesrequest-callback)
     - [Classes](#classes)
       - [Class User](#class-user)
@@ -21,6 +22,7 @@ Plugins are installed to SOGS by placing directory with plugin to /plugins direc
       - [`setUserPermissions`](#setuserpermissions)
       - [`sendDm`](#senddm)
       - [`sendMessage`](#sendmessage)
+      - [`deleteMessage`](#deletemessage)
       - [`setRoomAdmin`](#setroomadmin)
       - [`removeRoomAdmin`](#removeroomadmin)
       - [`setRoomModerator`](#setroommoderator)
@@ -29,6 +31,8 @@ Plugins are installed to SOGS by placing directory with plugin to /plugins direc
       - [`removeGlobalAdmin`](#removeglobaladmin)
       - [`setGlobalModerator`](#setglobalmoderator)
       - [`removeGlobalModerator`](#removeglobalmoderator)
+      - [`uploadFile`](#uploadfile)
+      - [`addReaction`](#addreaction)
   - [Logging and debugging](#logging-and-debugging)
 
 ## Plugins development
@@ -128,6 +132,22 @@ response.data = {
 
 **How it works with multiple plugins?** If any of plugins return `reject` — the message is rejected, otherwise if any of plugins return `drop`, it is dropped, otherwise it is sent as normal.
 
+#### `onLoad` callback
+
+Called when plugin is loaded by bunsogs.
+
+Payload:
+- `rooms` — array of rooms on this sogs. Class: [Room](#class-room)
+- `server` — this sogs. Class: [Server](#class-server)
+
+Example payload:
+```js
+event.data.payload = {
+  rooms: [room],
+  server: server
+}
+```
+
 #### `onRecentMessagesRequest` callback
 
 Called when user requested `/room/:token/messages/recent`
@@ -141,7 +161,8 @@ Example payload:
 ```js
 event.data.payload = {
   user: user, // can be null
-  room: room
+  room: room,
+  server: server
 }
 ```
 
@@ -205,11 +226,13 @@ room = {
 Represents current SOGS.
 
 - `pk` — sogs public key in hex string format
+- `url` — publicly accessible URL of the sogs
 
 Example:
 ```js
 server = {
-  pk: 'ac9c872e525a58970df6971655abb944a30b38853442a793b29843d20795e840'
+  pk: 'ac9c872e525a58970df6971655abb944a30b38853442a793b29843d20795e840',
+  url: 'http://localhost:3000'
 }
 ```
 
@@ -227,6 +250,21 @@ postMessage({
 })
 ```
 
+Some methods return responses. You can pass `ref` to your message and bunsogs will return `response_ref` with its value with response, you can receive it with `message` event:
+
+```ts
+postMessage({
+  method: 'uploadFile',
+  file: new Uint8Array(/* ... */)
+  ref: '1234567890'
+})
+self.addEventListener('message', async event => {
+  if (event.data.response_ref === '1234567890') {
+    console.log(event.data.id) // file id
+  }
+})
+```
+
 #### `banUser`
 
 Bans specified user in specified room. Restricts user from accessing room, room's content or writing anything to it. If you want to mute user, use [setUserPermissions](#setuserpermissions) method with write=false permission.
@@ -238,6 +276,8 @@ Request:
 | room    | `string` or `number` (optional) | Optional: if not specified, user will be banned globally. If string, must be room's token. If number, must be room's id on this bunsogs server. |
 | timeout | `number` (optional)             | If specified, ban will be lifted automatically after that number of seconds                                                                     |
 |         |                                 |                                                                                                                                                 |
+
+Does not return answer.
 
 #### `unbanUser`
 
@@ -265,45 +305,182 @@ Request:
 | upload     | `boolean` or `null` (optional) | Optional: only specify this if you want to change that permission from the current user permission override. Pass `true` or `false` to allow or deny uploading files for this user. Pass `null` to reset this permission to default, provided by this room.      |
 |            |                                |                                                                                                                                                                                                                                                                  |
 
+No response.
+
 #### `sendDm`
 
 Docs TBD
 
+No response.
+
 #### `sendMessage`
 
+Sends message.
+
+Request:
 Docs TBD
+
+Response:
+| Key | Type     | Description |
+| --- | -------- | ----------- |
+| id  | `number` | Message ID  |
+|     |          |             |
+
+#### `deleteMessage`
+
+Deletes message.
+
+Request:
+| Key       | Type                 | Description                                                                           |
+| --------- | -------------------- | ------------------------------------------------------------------------------------- |
+| room      | `string` or `number` | If string, must be room's token. If number, must be room's id on this bunsogs server. |
+| messageId | `number`             | Message ID in this room                                                               |
+|           |                      |                                                                                       |
+
+
+Response:
+| Key | Type     | Description |
+| --- | -------- | ----------- |
+| id  | `number` | Message ID  |
+|     |          |             |
+
 
 #### `setRoomAdmin`
 
-Docs TBD
+Makes the specified user admin of the specified room.
+
+Request:
+| Key     | Type                 | Description                                                                                                                   |
+| ------- | -------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| user    | `string` or `number` | If string, must be either blinded (prefix 15) or unblinded (prefix 05) Session ID. If number, must be user ID on this bunsogs |
+| room    | `string` or `number` | If string, must be room's token. If number, must be room's id on this bunsogs server.                                         |
+| visible | `boolean`            | If this admin is visible to other users                                                                                       |
+|         |                      |                                                                                                                               |
+
+No response.
 
 #### `removeRoomAdmin`
 
-Docs TBD
+Removes the specified admin from the specified room.
+
+Request:
+| Key     | Type                 | Description                                                                                                                   |
+| ------- | -------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| user    | `string` or `number` | If string, must be either blinded (prefix 15) or unblinded (prefix 05) Session ID. If number, must be user ID on this bunsogs |
+| room    | `string` or `number` | If string, must be room's token. If number, must be room's id on this bunsogs server.                                         |
+|         |                      |                                                                                                                               |
+
+No response.
 
 #### `setRoomModerator`
 
-Docs TBD
+Makes the specified user moderator of the specified room.
+
+Request:
+| Key     | Type                 | Description                                                                                                                   |
+| ------- | -------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| user    | `string` or `number` | If string, must be either blinded (prefix 15) or unblinded (prefix 05) Session ID. If number, must be user ID on this bunsogs |
+| room    | `string` or `number` | If string, must be room's token. If number, must be room's id on this bunsogs server.                                         |
+| visible | `boolean`            | If this moderator is visible to other users                                                                                   |
+|         |                      |                                                                                                                               |
+
+No response.
 
 #### `removeRoomModerator`
 
-Docs TBD
+Removes the specified moderator from the specified room.
+
+Request:
+| Key     | Type                 | Description                                                                                                                   |
+| ------- | -------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| user    | `string` or `number` | If string, must be either blinded (prefix 15) or unblinded (prefix 05) Session ID. If number, must be user ID on this bunsogs |
+| room    | `string` or `number` | If string, must be room's token. If number, must be room's id on this bunsogs server.                                         |
+|         |                      |                                                                                                                               |
+
+No response.
 
 #### `setGlobalAdmin`
 
-Docs TBD
+Makes the specified user global admin.
+
+Request:
+| Key     | Type                 | Description                                                                                                                   |
+| ------- | -------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| user    | `string` or `number` | If string, must be either blinded (prefix 15) or unblinded (prefix 05) Session ID. If number, must be user ID on this bunsogs |
+| visible | `boolean`            | If this admin is visible to other users                                                                                       |
+|         |                      |                                                                                                                               |
+
+No response.
 
 #### `removeGlobalAdmin`
 
-Docs TBD
+Removes global admin.
+
+Request:
+| Key     | Type                 | Description                                                                                                                   |
+| ------- | -------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| user    | `string` or `number` | If string, must be either blinded (prefix 15) or unblinded (prefix 05) Session ID. If number, must be user ID on this bunsogs |
+|         |                      |                                                                                                                               |
+
+No response.
 
 #### `setGlobalModerator`
 
-Docs TBD
+Makes the specified user global moderator.
+
+Request:
+| Key     | Type                 | Description                                                                                                                   |
+| ------- | -------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| user    | `string` or `number` | If string, must be either blinded (prefix 15) or unblinded (prefix 05) Session ID. If number, must be user ID on this bunsogs |
+| visible | `boolean`            | If this moderator is visible to other users                                                                                   |
+|         |                      |                                                                                                                               |
+
+No response.
 
 #### `removeGlobalModerator`
 
-Docs TBD
+Removes global moderator.
+
+Request:
+| Key  | Type                 | Description                                                                                                                   |
+| ---- | -------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| user | `string` or `number` | If string, must be either blinded (prefix 15) or unblinded (prefix 05) Session ID. If number, must be user ID on this bunsogs |
+|      |                      |                                                                                                                               |
+
+No response.
+
+#### `uploadFile`
+
+Upload a file to SOGS.
+
+Request:
+| Key      | Type                 | Description                                                                                                                   |
+| -------- | -------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| uploader | `string` or `number` | If string, must be either blinded (prefix 15) or unblinded (prefix 05) Session ID. If number, must be user ID on this bunsogs | 
+| room     | `string` or `number` | Room that will have this file. If string, must be room's token. If number, must be room's id on this bunsogs server.          |
+| file     | `Uint8Array`             | File contents                                                                                                                 |
+|          |                      |                                                                                                                               |
+
+Response:
+| Key | Type     | Description      |
+| --- | -------- | ---------------- |
+| id  | `number` | Uploaded file id |
+|     |          |                  |
+
+#### `addReaction`
+
+Add reaction to message as the specified user.
+
+Upload a file to SOGS.
+
+Request:
+| Key       | Type                 | Description                                                                                                                   |
+| --------- | -------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| user      | `string` or `number` | If string, must be either blinded (prefix 15) or unblinded (prefix 05) Session ID. If number, must be user ID on this bunsogs |
+| room      | `string` or `number` | If string, must be room's token. If number, must be room's id on this bunsogs server.                                         |
+| messageId | `number`             | Message id in this room                                                                                                       |
+| reaction  | `string`             | Emoji reaction                                                                                                                |
+|           |                      |                                                                                                                               |
 
 ## Logging and debugging
 

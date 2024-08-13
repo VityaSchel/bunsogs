@@ -5,6 +5,9 @@ import { BadPermission, PostRateLimited } from '@/errors'
 import { requestPlugins } from '@/plugins'
 import { type filesEntity, type message_detailsEntity, type messagesEntity, type room_moderatorsEntity, type roomsEntity, type user_permissionsEntity, type usersEntity } from '@/schema'
 import { User } from '@/user'
+import { v4 as uuid } from 'uuid'
+import path from 'path'
+import fs from 'fs/promises'
 import * as Utils from '@/utils'
 import * as API from '@/api'
 
@@ -954,6 +957,71 @@ export class Room {
     `).run({ $roomId: this.id })
     await this.refresh()
     return results ? results['COUNT(*)'] : 0
+  }
+
+  async uploadFile({ providedFilename, file, user }: {
+    user: User
+    providedFilename: string | null
+    file: Buffer
+  }) {
+    if (providedFilename !== null && providedFilename.length > 255) {
+      providedFilename = null
+    }
+
+    let filename = providedFilename
+
+    if (filename === null) {
+      filename = Utils.randomFilename()
+    } else if (providedFilename !== null && !Utils.isSafeFilename(providedFilename)) {
+      filename = Utils.randomFilename(providedFilename)
+    }
+
+    const insertedFile = await db.query<{ id: number }, { $roomId: number, $userId: number, $size: number, $expiry: number, $filename: string }>(`
+    INSERT INTO files (room, uploader, size, expiry, filename, path)
+    VALUES ($roomId, $userId, $size, $expiry, $filename, 'tmp')
+    RETURNING id
+  `).get({
+      $roomId: this.id,
+      $userId: user.id,
+      $size: file.byteLength,
+      $filename: filename,
+      $expiry: Math.floor(Date.now() / 1000) + 60 * 60
+    })
+    if (insertedFile === null) {
+      throw new Error('Error while uploading file: Couldn\'t insert file to DB')
+    }
+
+    // we don't append extension so that user can't upload malicious scripts 
+    // and execute them in case this directory is publicly accessible and user
+    // happens to configure php-fpm, for example
+    const storageFilename = insertedFile.id + '_' + uuid()
+    const uploadsDirectory = path.resolve('./uploads', this.token)
+    const filePath = path.resolve(uploadsDirectory, storageFilename)
+    try {
+      await fs.mkdir(uploadsDirectory, { recursive: true })
+      await fs.writeFile(filePath, file)
+    } catch (e) {
+      await db.query<null, { $roomId: number, $fileId: number }>(`
+      DELETE FROM files WHERE room = $roomId, id = $fileId
+    `).run({
+        $roomId: this.id,
+        $fileId: insertedFile.id
+      })
+      if (typeof e === 'object' && e && 'code' in e && e.code === 'ENOSPC') {
+        console.error('Error while uploading file: Insufficient space on disk')
+        throw new Error('Insufficient space on disk')
+      } else {
+        console.error('Error while uploading file:', e)
+        throw e
+      }
+    }
+
+    const relativeFilePath = `uploads/${this.token}/${storageFilename}`
+
+    await db.query<null, { $path: string, $fileId: number }>('UPDATE files SET path = $path WHERE id = $fileId')
+      .run({ $path: relativeFilePath, $fileId: insertedFile.id })
+
+    return insertedFile
   }
 }
 

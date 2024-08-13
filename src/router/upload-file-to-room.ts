@@ -1,11 +1,7 @@
 import { getConfig } from '@/config'
-import { db } from '@/db'
 import { getRooms } from '@/room'
 import type { SogsRequest, SogsResponse } from '@/router'
-import { isSafeFilename, randomFilename, testPermission } from '@/utils'
-import { v4 as uuid } from 'uuid'
-import path from 'path'
-import fs from 'fs/promises'
+import { testPermission } from '@/utils'
 
 /**
   Uploads a file to a room.
@@ -111,66 +107,22 @@ export async function uploadFileToRoom(req: SogsRequest): Promise<SogsResponse> 
   }
 
   const contentDispositionPrefix = 'attachment; filename*=UTF-8\'\''
-  let providedFilename = (req.headers && 'content-disposition' in req.headers && req.headers['content-disposition'].startsWith(contentDispositionPrefix)) 
+  const providedFilename = (req.headers && 'content-disposition' in req.headers && req.headers['content-disposition'].startsWith(contentDispositionPrefix)) 
     ? decodeURIComponent(req.headers['content-disposition'].substring(contentDispositionPrefix.length))
     : null
 
-  if (providedFilename !== null && providedFilename.length > 255) {
-    providedFilename = null
-  }
-
-  let filename = providedFilename
-
-  if (filename === null) {
-    filename = randomFilename()
-  } else if (providedFilename !== null && !isSafeFilename(providedFilename)) {
-    filename = randomFilename(providedFilename)
-  }
-
-  const insertedFile = await db.query<{ id: number }, { $roomId: number, $userId: number, $size: number, $expiry: number, $filename: string }>(`
-    INSERT INTO files (room, uploader, size, expiry, filename, path)
-    VALUES ($roomId, $userId, $size, $expiry, $filename, 'tmp')
-    RETURNING id
-  `).get({ 
-    $roomId: room.id, 
-    $userId: req.user.id, 
-    $size: req.body.length, 
-    $filename: filename,
-    $expiry: Math.floor(Date.now() / 1000) + 60 * 60
-  })
-  if (insertedFile === null) {
-    throw new Error('Error while uploading file: Couldn\'t insert file to DB')
-  }
-
-  // we don't append extension so that user can't upload malicious scripts 
-  // and execute them in case this directory is publicly accessible and user
-  // happens to configure php-fpm, for example
-  const storageFilename = insertedFile.id + '_' + uuid()
-  const uploadsDirectory = path.resolve('./uploads', roomToken)
-  const filePath = path.resolve(uploadsDirectory, storageFilename)
   try {
-    await fs.mkdir(uploadsDirectory, { recursive: true })
-    await fs.writeFile(filePath, req.body)
-  } catch(e) {
-    await db.query<null, { $roomId: number, $fileId: number }>(`
-      DELETE FROM files WHERE room = $roomId, id = $fileId
-    `).run({
-      $roomId: room.id,
-      $fileId: insertedFile.id
+    const insertedFile = await room.uploadFile({
+      file: req.body,
+      providedFilename: providedFilename,
+      user: req.user
     })
-    if (typeof e === 'object' && e && 'code' in e && e.code === 'ENOSPC') {
-      console.error('Error while uploading file: Insufficient space on disk')
+    return { response: { id: insertedFile.id }, status: 201, contentType: 'application/json' }
+  } catch(e) {
+    if (e instanceof Error && e.message === 'Insufficient space on disk') {
       return { response: null, status: 507 }
     } else {
-      console.error('Error while uploading file:', e)
       throw e
     }
   }
-
-  const relativeFilePath = `uploads/${roomToken}/${storageFilename}`
-
-  await db.query<null, { $path: string, $fileId: number }>('UPDATE files SET path = $path WHERE id = $fileId')
-    .run({ $path: relativeFilePath, $fileId: insertedFile.id })
-
-  return { response: { id: insertedFile.id }, status: 201, contentType: 'application/json' }
 }

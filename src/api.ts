@@ -4,7 +4,6 @@ import { getServerKey } from '@/keypairs'
 import { mapRoomEntityToRoomInstance, Room } from '@/room'
 import type { inboxEntity, roomsEntity } from '@/schema'
 import { User } from '@/user'
-import { from_base64 } from 'libsodium-wrappers'
 import { z } from 'zod'
 
 async function getUserInstance(user: number | string): Promise<User> {
@@ -70,6 +69,11 @@ export const paramsSchemas = {
     whisperMods: z.boolean().optional(),
     files: z.array(z.number().nonnegative().int()).optional()
   }),
+  deleteMessage: z.object({
+    room: z.union([z.string().min(1), z.number().int().nonnegative()]),
+    user: z.union([sessionIdSchema, z.number().nonnegative().int()]),
+    messageId: z.number().int().nonnegative()
+  }),
   setRoomAdmin: z.object({
     user: z.union([sessionIdSchema, z.number().nonnegative().int()]),
     room: z.union([z.string().min(1), z.number().int().nonnegative()]),
@@ -101,6 +105,17 @@ export const paramsSchemas = {
   }),
   removeGlobalModerator: z.object({
     user: z.union([sessionIdSchema, z.number().nonnegative().int()])
+  }),
+  uploadFile: z.object({
+    uploader: z.union([sessionIdSchema, z.number().nonnegative().int()]),
+    room: z.union([z.string().min(1), z.number().int().nonnegative()]),
+    file: z.instanceof(Uint8Array)
+  }),
+  addReaction: z.object({
+    room: z.union([z.string().min(1), z.number().int().nonnegative()]),
+    user: z.union([sessionIdSchema, z.number().nonnegative().int()]),
+    messageId: z.number().int().nonnegative(),
+    reaction: z.string().min(1)
   })
 }
 
@@ -192,7 +207,6 @@ export async function sendDm({ from, to, message }: {
   to: string | number
   message: string
 }) {
-  console.log('sendDm', from, to, message)
   const fromUser = await getUserInstance(from)
   const toUser = await getUserInstance(to)
   const data = Buffer.from(message, 'base64')
@@ -229,7 +243,7 @@ export async function sendMessage({ user, room, data, signature, whisperTo, whis
   const userInstance = await getUserInstance(user)
   const roomInstance = await getRoomInstance(room)
   const whisperToUser = whisperTo === undefined ? null : await getUserInstance(whisperTo)
-  await roomInstance.addPost(
+  const msg = await roomInstance.addPost(
     userInstance, 
     Buffer.from(data, 'base64'),
     Buffer.from(signature, 'base64'),
@@ -237,6 +251,17 @@ export async function sendMessage({ user, room, data, signature, whisperTo, whis
     whisperMods, 
     files
   )
+  return { id: msg.id }
+}
+
+export async function deleteMessage({ user, room, messageId }: {
+  user: string | number
+  room: string | number
+  messageId: number
+}) {
+  const userInstance = await getUserInstance(user)
+  const roomInstance = await getRoomInstance(room)
+  await roomInstance.deletePosts(userInstance, [messageId])
 }
 
 export async function setRoomAdmin({ user, room, visible }: {
@@ -307,6 +332,36 @@ export async function removeGlobalModerator({ user }: {
   await userInstance.removeGlobalModerator()
 }
 
+export async function uploadFile({ uploader, room, file }: {
+  uploader: string | number
+  room: string | number
+  file: Uint8Array
+}) {
+  const userInstance = await getUserInstance(uploader)
+  const roomInstance = await getRoomInstance(room)
+  if (file.length > getConfig().max_size) {
+    throw new Error('File too large')
+  }
+
+  const insertedFile = await roomInstance.uploadFile({
+    file: Buffer.from(file),
+    providedFilename: null,
+    user: userInstance
+  })
+  return { id: insertedFile.id }
+}
+
+export async function addReaction({ room, user, messageId, reaction }: {
+  room: string | number
+  user: string | number
+  messageId: number
+  reaction: string
+}) {
+  const userInstance = await getUserInstance(user)
+  const roomInstance = await getRoomInstance(room)
+  await roomInstance.addReaction({ user: userInstance, messageId, reaction })
+}
+
 export function mapRoom(room: Room) {
   return {
     id: room.id,
@@ -316,6 +371,7 @@ export function mapRoom(room: Room) {
 
 export function mapSogs() {
   return {
-    pk: getServerKey().publicKey
+    pk: getServerKey().publicKey.toString('hex'),
+    url: getConfig().url
   }
 }
