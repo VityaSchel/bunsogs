@@ -1,5 +1,6 @@
 import type { User } from '@/user'
 import { getCapabilities } from '@/router/get-capabilities'
+import { getRoomsRoute } from '@/router/get-rooms'
 import { getRoom } from '@/router/get-room'
 import { getRoomUpdates } from '@/router/get-room-updates'
 import { getRoomRecentMessages } from '@/router/get-room-recent-messages'
@@ -48,6 +49,7 @@ type Route = { method: string, route: string, handler: (req: SogsRequest) => Sog
 const router: Route[] = []
 
 router.push({ method: 'GET', route: '/capabilities', handler: getCapabilities })
+router.push({ method: 'GET', route: '/rooms', handler: getRoomsRoute })
 router.push({ method: 'GET', route: '/room/:token', handler: getRoom })
 router.push({ method: 'GET', route: '/room/:token/pollInfo/:info_updates', handler: getRoomUpdates })
 router.push({ method: 'DELETE', route: '/room/:token/all/:session_id', handler: deleteAllFromUser })
