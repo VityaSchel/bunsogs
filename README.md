@@ -25,6 +25,10 @@ Aims to be very fast, flexible and extensible. Drop-in replacement for pysogs â€
   - [Known issues](#known-issues)
   - [Caveats](#caveats)
   - [Credits](#credits)
+  
+Follow bunsogs updates in the official announcements sogs:
+
+[https://sogs.hloth.dev/bunsogs?public_key=8948f2d9046a40e7dbc0a4fd7c29d8a4fe97df1fa69e64f0ab6fc317afb9c945](https://sogs.hloth.dev/bunsogs?public_key=8948f2d9046a40e7dbc0a4fd7c29d8a4fe97df1fa69e64f0ab6fc317afb9c945)
 
 ## Features
 
