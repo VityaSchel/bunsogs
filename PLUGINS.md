@@ -111,7 +111,10 @@ event.data.payload = {
 }
 ```
 
-You should return `action` property where `send` means allow to send and `reject` means reject request to send.
+You should return `action` property where :
+- `send` means allow to send
+- `reject` means throw error visible to Session client
+- `drop` means send message, but it will be only visible to user who sent it
 
 Example response:
 
@@ -123,7 +126,7 @@ response.data = {
 }
 ```
 
-**How it works with multiple plugins?** If any of plugins return `reject` — the message is rejected, otherwise it is sent as normal.
+**How it works with multiple plugins?** If any of plugins return `reject` — the message is rejected, otherwise if any of plugins return `drop`, it is dropped, otherwise it is sent as normal.
 
 #### `onRecentMessagesRequest` callback
 

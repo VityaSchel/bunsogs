@@ -684,8 +684,13 @@ export class Room {
       },
       server: API.mapSogs()
     })
-    const filtered = results.filter(v => v !== undefined)
+    const rejected = results.filter(v => v !== undefined)
       .some(v => 'action' in v && v.action === 'reject')
+    if (rejected) {
+      throw new Error('Post rejected')
+    }
+    const filtered = results.filter(v => v !== undefined)
+      .some(v => 'action' in v && v.action === 'drop')
 
     if(this.rateLimitSettings.rateLimitSize > 0 && !permissions.admin) {
       const sinceLimit = Date.now() - this.rateLimitSettings.rateLimitInterval * 1000
