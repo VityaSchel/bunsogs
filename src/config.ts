@@ -8,14 +8,6 @@ const filesizeRegex = /^(\d+(\.\d)?)(B|KB|MB)$/i
 const configSchema = z.object({
   port: z.number().int().min(1).max(65535),
   hostname: z.string(),
-  url: z.string().url().transform(url => {
-    const trimmed = url.trim()
-    if (trimmed.endsWith('/')) {
-      return trimmed.slice(0, -1)
-    } else {
-      return trimmed
-    }
-  }),
   expiry: z.number().int().min(0),
   max_size: z.number().int().min(1).max(6000000),
   active_threshold: z.number().int().min(1),

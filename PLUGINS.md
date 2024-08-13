@@ -226,13 +226,11 @@ room = {
 Represents current SOGS.
 
 - `pk` — sogs public key in hex string format
-- `url` — publicly accessible URL of the sogs
 
 Example:
 ```js
 server = {
-  pk: 'ac9c872e525a58970df6971655abb944a30b38853442a793b29843d20795e840',
-  url: 'http://localhost:3000'
+  pk: 'ac9c872e525a58970df6971655abb944a30b38853442a793b29843d20795e840'
 }
 ```
 
