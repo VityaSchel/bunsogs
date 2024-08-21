@@ -6,6 +6,7 @@ Aims to be very fast, flexible and extensible. Drop-in replacement for pysogs â€
 
 - [Bun SOGS](#bun-sogs)
   - [Features](#features)
+  - [Security](#security)
   - [Prerequisites](#prerequisites)
   - [Install](#install)
   - [Plugins](#plugins)
@@ -57,6 +58,12 @@ And it can be installed anywhere, not just Ubuntu 22 :)
 |                                         |        |         |         |
 
 If you run bunsogs successfully on any untested platform, make sure to [tell me](mailto:bunsogs@hloth.dev) and I will update this table.
+
+## Security
+
+Bunsogs, bunsogs-auto-dm, bunsogs-profanity-filter are constantly monitored by Snyx â€” independent analyzation tool that searches for known vulnerable dependencies and code vulnerabilities. Bunsogs and its officially supported plugins have no known vulnerable dependencies, backdoors, exploits or any kind of malware.
+
+If you'd like to report a security vulnerability that affects users of bunsogs privately, please contact me via [Telegram](https://t.me/hlothdev), [email](bunsogs@hloth.dev) or Session (ONS: hloth)
 
 ## Prerequisites
 
