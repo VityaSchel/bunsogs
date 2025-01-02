@@ -49,7 +49,7 @@ import { z } from 'zod'
  */
 export async function addReaction(req: SogsRequest): Promise<SogsResponse> {
   const roomToken = req.params?.['token']
-  if (!roomToken) {
+  if (!roomToken || Array.isArray(roomToken)) {
     return { status: 400, response: null }
   }
 

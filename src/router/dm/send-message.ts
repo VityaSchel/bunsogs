@@ -55,7 +55,7 @@ export async function sendDmMessage(req: SogsRequest): Promise<SogsResponse> {
       }
     }
   }
-  const parsedBody = SJSON.parse(req.body.toString('utf-8'))
+  const parsedBody = req.body
   const body = await z.object({
     message: z.string().max(24000),
   }).parse(parsedBody)

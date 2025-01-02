@@ -66,7 +66,8 @@ export async function postRoomMessage(req: SogsRequest): Promise<SogsResponse> {
   if (req.body === null) {
     return { status: 400, response: null }
   }
-  const parsedBody = SJSON.parse(req.body.toString('utf-8'))
+  const parsedBody = req.body
+  console.log(parsedBody)
   const body = await z.object({
     data: z.string().min(1).base64(),
     signature: z.string().length(88).base64(),
