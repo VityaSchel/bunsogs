@@ -145,7 +145,7 @@ To add or manage rooms list and settings, admins, moderators, bans, use bunsogs-
 1. Interactive, human-friendly, **recommended** (i.e. just type `./bunsogs-cli` and hit enter)
   - You will be presented with a graphic interface that you can navigate using keyboard arrows
   - Demo:
-  - ![bunsogs-cli interactive mode demo gif](https://r2.hloth.dev/bunsogs-demo.gif)
+  - ![bunsogs-demo](https://github.com/user-attachments/assets/8ec881a6-af03-4968-8669-1f40d0c9e21a)
 2. With arguments, for automation (e.g. `./bunsogs-cli --add-room bun --name "Bun.sh lovers"`)
   - You can pass options to CLI to automate things, because it will simply run the process, output result and exit, you may skip any confirmation prompts with `-y` argument
 
