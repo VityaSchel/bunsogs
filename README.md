@@ -1,11 +1,11 @@
 # Bun SOGS
 
+> [!NOTE]
+> This project is archived because I no longer contribute to Session. You might want to check out the official SOGS implementation written in Python: [oxen-io/session-pysogs](https://github.com/oxen-io/session-pysogs).
+
 Session Open Group Server implementation written in JavaScript using [bun.sh](https://bun.sh)
 
 Aims to be very fast, flexible and extensible. Drop-in replacement for pysogs — works with the same database schema. Bunsogs support everything pysogs has, but it's better.
-
-> [!IMPORTANT]
-> I'm looking for a job! Interested in hiring me? Visit [cv.hloth.dev](https://cv.hloth.dev) to review my resume & CV.
 
 - [Bun SOGS](#bun-sogs)
   - [Features](#features)
